@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface FlipCallbackData {
   id: string;
@@ -141,6 +144,34 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`✅ SUCCESS: Assigned voucher ${voucher.code} to ${sender_email}`);
+
+    // Send email with voucher code
+    try {
+      const emailResult = await resend.emails.send({
+        from: "onboarding@resend.dev", // Change this to your verified domain
+        to: sender_email,
+        subject: "Your Voucher Code - Payment Successful!",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #4CAF50;">Payment Successful! 🎉</h2>
+            <p>Thank you for your payment. Here is your voucher code:</p>
+            <div style="background-color: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+              <h1 style="color: #333; font-size: 32px; letter-spacing: 4px; margin: 0;">${voucher.code}</h1>
+            </div>
+            <p><strong>Transaction ID:</strong> ${transactionId}</p>
+            <p><strong>Amount:</strong> Rp ${amount.toLocaleString('id-ID')}</p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+            <p style="color: #666; font-size: 12px;">If you have any questions, please contact our support team.</p>
+          </div>
+        `,
+      });
+
+      console.log(`📧 Email sent successfully:`, emailResult);
+    } catch (emailError) {
+      console.error("📧 Error sending email:", emailError);
+      // Don't fail the whole request if email fails
+      // The voucher is already assigned, email is just a bonus
+    }
 
     return NextResponse.json({
       success: true,
