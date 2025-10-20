@@ -1,4 +1,3 @@
-// app/api/api-callback/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { Resend } from "resend";
@@ -6,64 +5,31 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface FlipCallbackData {
-  // Required fields we expect
   id: string;
   amount: number;
   status: string;
-  
-  // Optional fields that Flip might send
-  sender_email?: string;
-  sender_name?: string;
-  sender_bank?: string;
+  sender_email: string;
   payment_method?: string;
-  bill_link?: string;
-  bill_title?: string;
-  created_at?: string;
-  // Add more as needed after testing
-  [key: string]: any; // Catch-all for unexpected fields
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: FlipCallbackData = await request.json();
 
-    // Log the ENTIRE payload to understand what Flip sends
-    console.log("📥 Flip callback received - FULL PAYLOAD:", JSON.stringify(body, null, 2));
+    console.log("📥 Flip callback received:", body);
 
-    const { 
-      id: transactionId, 
-      amount, 
-      status, 
-      sender_email,
-      sender_name,
-      sender_bank,
-      payment_method 
-    } = body;
+    const { id: transactionId, amount, status, sender_email, payment_method } = body;
 
     // Validate required fields
-    if (!transactionId) {
-      console.error("❌ Missing transaction ID");
+    if (!transactionId || !sender_email) {
+      console.error("❌ Missing required fields");
       return NextResponse.json(
-        { error: "Missing required field: id" },
+        { error: "Missing required fields: id or sender_email" },
         { status: 400 }
       );
     }
 
-    // Extract email - it might be in different fields
-    const email = sender_email || body.email || body.customer_email;
-    
-    if (!email) {
-      console.error("❌ No email found in callback");
-      console.log("Available fields:", Object.keys(body));
-      
-      // Still return 200 to acknowledge, but don't process
-      return NextResponse.json({
-        success: true,
-        message: "Callback received but no email found",
-      });
-    }
-
-    // Check if transaction already exists (idempotency)
+    // Check if transaction already exists
     const { data: existingTx } = await supabase
       .from("transactions")
       .select("*")
@@ -83,15 +49,11 @@ export async function POST(request: NextRequest) {
     if (status !== "SUCCESSFUL") {
       console.log(`⏳ Transaction status: ${status} - not assigning voucher yet`);
       
-      // Store the transaction for record-keeping
       const { error: txError } = await supabase.from("transactions").insert({
         transaction_id: transactionId,
-        email: email,
+        email: sender_email,
         amount: amount,
         status: status,
-        sender_name: sender_name,
-        sender_bank: sender_bank,
-        payment_method: payment_method,
       });
 
       if (txError) {
@@ -119,11 +81,9 @@ export async function POST(request: NextRequest) {
 
       await supabase.from("transactions").insert({
         transaction_id: transactionId,
-        email: email,
+        email: sender_email,
         amount: amount,
         status: status,
-        sender_name: sender_name,
-        sender_bank: sender_bank,
       });
 
       return NextResponse.json(
@@ -140,10 +100,10 @@ export async function POST(request: NextRequest) {
       .update({ 
         used: true,
         used_at: new Date().toISOString(),
-        used_by: email
+        used_by: sender_email
       })
       .eq("code", voucher.code)
-      .eq("used", false); // Double-check it's still unused
+      .eq("used", false);
 
     if (updateError) {
       console.error("❌ Error updating voucher:", updateError);
@@ -158,13 +118,10 @@ export async function POST(request: NextRequest) {
       .from("transactions")
       .insert({
         transaction_id: transactionId,
-        email: email,
+        email: sender_email,
         voucher_code: voucher.code,
         amount: amount,
         status: status,
-        sender_name: sender_name,
-        sender_bank: sender_bank,
-        payment_method: payment_method,
       });
 
     if (txError) {
@@ -186,24 +143,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`✅ SUCCESS: Assigned voucher ${voucher.code} to ${email}`);
+    console.log(`✅ SUCCESS: Assigned voucher ${voucher.code} to ${sender_email}`);
 
     // Send email with voucher code
     try {
       const emailResult = await resend.emails.send({
         from: "onboarding@resend.dev", // Change this to your verified domain
-        to: email,
-        subject: "Your Voucher Code - Payment Successful! 🎉",
+        to: sender_email,
+        subject: "Your Voucher Code - Payment Successful!",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #4CAF50;">Payment Successful! 🎉</h2>
-            <p>Thank you for your payment${sender_name ? `, ${sender_name}` : ''}. Here is your voucher code:</p>
+            <p>Thank you for your payment. Here is your voucher code:</p>
             <div style="background-color: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
               <h1 style="color: #333; font-size: 32px; letter-spacing: 4px; margin: 0;">${voucher.code}</h1>
             </div>
             <p><strong>Transaction ID:</strong> ${transactionId}</p>
             <p><strong>Amount:</strong> Rp ${amount.toLocaleString('id-ID')}</p>
-            ${sender_bank ? `<p><strong>Payment Method:</strong> ${sender_bank}</p>` : ''}
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
             <p style="color: #666; font-size: 12px;">If you have any questions, please contact our support team.</p>
           </div>
@@ -214,29 +170,28 @@ export async function POST(request: NextRequest) {
     } catch (emailError) {
       console.error("📧 Error sending email:", emailError);
       // Don't fail the whole request if email fails
+      // The voucher is already assigned, email is just a bonus
     }
 
-    // ALWAYS return 200 OK to Flip
     return NextResponse.json({
       success: true,
       transaction_id: transactionId,
       voucher_code: voucher.code,
-      email: email,
+      email: sender_email,
     });
-    
   } catch (error) {
     console.error("💥 Callback error:", error);
-    
-    // STILL return 200 to prevent retries
-    return NextResponse.json({
-      success: false,
-      error: "Internal server error",
-      message: error instanceof Error ? error.message : "Unknown error",
-    }, { status: 200 }); // Changed to 200!
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
   }
 }
 
-// Test endpoint to verify it's running
+// Test endpoint
 export async function GET() {
   return NextResponse.json({
     message: "Flip callback endpoint is running ✅",
