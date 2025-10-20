@@ -14,9 +14,30 @@ interface FlipCallbackData {
 
 export async function POST(request: NextRequest) {
   try {
-    const body: FlipCallbackData = await request.json();
+    // Check content type
+    const contentType = request.headers.get("content-type") || "";
+    
+    let body: FlipCallbackData;
+    
+    if (contentType.includes("application/x-www-form-urlencoded")) {
+      // Flip sends form-encoded data with JSON inside a "data" parameter
+      const formData = await request.formData();
+      const dataString = formData.get("data") as string;
+      
+      console.log("📥 Form data received:", dataString);
+      
+      if (!dataString) {
+        console.error("❌ No 'data' parameter in form");
+        return NextResponse.json({ success: true, message: "No data parameter" });
+      }
+      
+      body = JSON.parse(dataString);
+    } else {
+      // Standard JSON
+      body = await request.json();
+    }
 
-    console.log("📥 Flip callback received:", body);
+    console.log("📥 Flip callback received - FULL PAYLOAD:", JSON.stringify(body, null, 2));
 
     const { id: transactionId, amount, status, sender_email, payment_method } = body;
 
@@ -24,8 +45,8 @@ export async function POST(request: NextRequest) {
     if (!transactionId || !sender_email) {
       console.error("❌ Missing required fields");
       return NextResponse.json(
-        { error: "Missing required fields: id or sender_email" },
-        { status: 400 }
+        { success: true, message: "Missing required fields" },
+        { status: 200 }
       );
     }
 
@@ -86,10 +107,10 @@ export async function POST(request: NextRequest) {
         status: status,
       });
 
-      return NextResponse.json(
-        { error: "No vouchers available - please add vouchers to database" },
-        { status: 500 }
-      );
+      return NextResponse.json({
+        success: true,
+        message: "No vouchers available",
+      });
     }
 
     console.log(`🎟️ Found voucher: ${voucher.code}`);
@@ -107,10 +128,10 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       console.error("❌ Error updating voucher:", updateError);
-      return NextResponse.json(
-        { error: "Failed to assign voucher" },
-        { status: 500 }
-      );
+      return NextResponse.json({
+        success: true,
+        message: "Failed to assign voucher",
+      });
     }
 
     // Create transaction record
@@ -127,7 +148,7 @@ export async function POST(request: NextRequest) {
     if (txError) {
       console.error("❌ Error creating transaction:", txError);
 
-      // Rollback: Mark voucher as unused
+      // Rollback
       await supabase
         .from("vouchers")
         .update({ 
@@ -137,18 +158,18 @@ export async function POST(request: NextRequest) {
         })
         .eq("code", voucher.code);
 
-      return NextResponse.json(
-        { error: "Failed to create transaction" },
-        { status: 500 }
-      );
+      return NextResponse.json({
+        success: true,
+        message: "Failed to create transaction",
+      });
     }
 
     console.log(`✅ SUCCESS: Assigned voucher ${voucher.code} to ${sender_email}`);
 
-    // Send email with voucher code
+    // Send email
     try {
       const emailResult = await resend.emails.send({
-        from: "onboarding@resend.dev", // Change this to your verified domain
+        from: "onboarding@resend.dev",
         to: sender_email,
         subject: "Your Voucher Code - Payment Successful!",
         html: `
@@ -169,8 +190,6 @@ export async function POST(request: NextRequest) {
       console.log(`📧 Email sent successfully:`, emailResult);
     } catch (emailError) {
       console.error("📧 Error sending email:", emailError);
-      // Don't fail the whole request if email fails
-      // The voucher is already assigned, email is just a bonus
     }
 
     return NextResponse.json({
@@ -179,15 +198,14 @@ export async function POST(request: NextRequest) {
       voucher_code: voucher.code,
       email: sender_email,
     });
+    
   } catch (error) {
     console.error("💥 Callback error:", error);
-    return NextResponse.json(
-      {
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    
+    return NextResponse.json({
+      success: true,
+      message: "Error processing callback",
+    }, { status: 200 });
   }
 }
 
