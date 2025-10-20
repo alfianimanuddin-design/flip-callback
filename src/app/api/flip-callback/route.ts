@@ -1,3 +1,4 @@
+// app/api/api-callback/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { Resend } from "resend";
@@ -5,9 +6,12 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface FlipCallbackData {
+  // Required fields we expect
   id: string;
   amount: number;
   status: string;
+  
+  // Optional fields that Flip might send
   sender_email?: string;
   sender_name?: string;
   sender_bank?: string;
@@ -15,34 +19,15 @@ interface FlipCallbackData {
   bill_link?: string;
   bill_title?: string;
   created_at?: string;
-  [key: string]: any;
+  // Add more as needed after testing
+  [key: string]: any; // Catch-all for unexpected fields
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Check content type
-    const contentType = request.headers.get("content-type") || "";
-    
-    let body: FlipCallbackData;
-    
-    if (contentType.includes("application/x-www-form-urlencoded")) {
-      // Flip sends form-encoded data with JSON inside a "data" parameter
-      const formData = await request.formData();
-      const dataString = formData.get("data") as string;
-      
-      console.log("📥 Form data received:", dataString);
-      
-      if (!dataString) {
-        console.error("❌ No 'data' parameter in form");
-        return NextResponse.json({ success: true, message: "No data parameter" });
-      }
-      
-      body = JSON.parse(dataString);
-    } else {
-      // Standard JSON
-      body = await request.json();
-    }
+    const body: FlipCallbackData = await request.json();
 
+    // Log the ENTIRE payload to understand what Flip sends
     console.log("📥 Flip callback received - FULL PAYLOAD:", JSON.stringify(body, null, 2));
 
     const { 
@@ -59,8 +44,8 @@ export async function POST(request: NextRequest) {
     if (!transactionId) {
       console.error("❌ Missing transaction ID");
       return NextResponse.json(
-        { success: true, message: "Missing transaction ID" },
-        { status: 200 }
+        { error: "Missing required field: id" },
+        { status: 400 }
       );
     }
 
@@ -71,6 +56,7 @@ export async function POST(request: NextRequest) {
       console.error("❌ No email found in callback");
       console.log("Available fields:", Object.keys(body));
       
+      // Still return 200 to acknowledge, but don't process
       return NextResponse.json({
         success: true,
         message: "Callback received but no email found",
@@ -97,6 +83,7 @@ export async function POST(request: NextRequest) {
     if (status !== "SUCCESSFUL") {
       console.log(`⏳ Transaction status: ${status} - not assigning voucher yet`);
       
+      // Store the transaction for record-keeping
       const { error: txError } = await supabase.from("transactions").insert({
         transaction_id: transactionId,
         email: email,
@@ -139,10 +126,10 @@ export async function POST(request: NextRequest) {
         sender_bank: sender_bank,
       });
 
-      return NextResponse.json({
-        success: true,
-        message: "No vouchers available",
-      });
+      return NextResponse.json(
+        { error: "No vouchers available - please add vouchers to database" },
+        { status: 500 }
+      );
     }
 
     console.log(`🎟️ Found voucher: ${voucher.code}`);
@@ -156,14 +143,14 @@ export async function POST(request: NextRequest) {
         used_by: email
       })
       .eq("code", voucher.code)
-      .eq("used", false);
+      .eq("used", false); // Double-check it's still unused
 
     if (updateError) {
       console.error("❌ Error updating voucher:", updateError);
-      return NextResponse.json({
-        success: true,
-        message: "Failed to assign voucher",
-      });
+      return NextResponse.json(
+        { error: "Failed to assign voucher" },
+        { status: 500 }
+      );
     }
 
     // Create transaction record
@@ -183,7 +170,7 @@ export async function POST(request: NextRequest) {
     if (txError) {
       console.error("❌ Error creating transaction:", txError);
 
-      // Rollback
+      // Rollback: Mark voucher as unused
       await supabase
         .from("vouchers")
         .update({ 
@@ -193,18 +180,18 @@ export async function POST(request: NextRequest) {
         })
         .eq("code", voucher.code);
 
-      return NextResponse.json({
-        success: true,
-        message: "Failed to create transaction",
-      });
+      return NextResponse.json(
+        { error: "Failed to create transaction" },
+        { status: 500 }
+      );
     }
 
     console.log(`✅ SUCCESS: Assigned voucher ${voucher.code} to ${email}`);
 
-    // Send email
+    // Send email with voucher code
     try {
       const emailResult = await resend.emails.send({
-        from: "onboarding@resend.dev",
+        from: "onboarding@resend.dev", // Change this to your verified domain
         to: email,
         subject: "Your Voucher Code - Payment Successful! 🎉",
         html: `
@@ -226,8 +213,10 @@ export async function POST(request: NextRequest) {
       console.log(`📧 Email sent successfully:`, emailResult);
     } catch (emailError) {
       console.error("📧 Error sending email:", emailError);
+      // Don't fail the whole request if email fails
     }
 
+    // ALWAYS return 200 OK to Flip
     return NextResponse.json({
       success: true,
       transaction_id: transactionId,
@@ -238,17 +227,20 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("💥 Callback error:", error);
     
+    // STILL return 200 to prevent retries
     return NextResponse.json({
-      success: true,
+      success: false,
       error: "Internal server error",
       message: error instanceof Error ? error.message : "Unknown error",
-    }, { status: 200 });
+    }, { status: 200 }); // Changed to 200!
   }
 }
 
+// Test endpoint to verify it's running
 export async function GET() {
   return NextResponse.json({
     message: "Flip callback endpoint is running ✅",
     timestamp: new Date().toISOString(),
+    endpoint: "/api/api-callback"
   });
 }
