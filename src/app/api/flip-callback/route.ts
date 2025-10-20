@@ -241,6 +241,5 @@ export async function GET() {
   return NextResponse.json({
     message: "Flip callback endpoint is running ✅",
     timestamp: new Date().toISOString(),
-    endpoint: "/api/api-callback"
   });
 }
