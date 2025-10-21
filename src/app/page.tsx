@@ -12,8 +12,8 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: 50000, // Fixed amount
-          email: 'customer@example.com', // You can change this
+          amount: 50000,
+          email: 'customer@example.com',
           title: 'Voucher Purchase'
         })
       });
@@ -21,8 +21,14 @@ export default function Home() {
       const data = await response.json();
 
       if (data.success) {
+        // Add https:// if not present
+        let paymentUrl = data.payment_url;
+        if (!paymentUrl.startsWith('http://') && !paymentUrl.startsWith('https://')) {
+          paymentUrl = 'https://' + paymentUrl;
+        }
+        
         // Redirect to Flip payment page
-        window.location.href = data.payment_url;
+        window.location.href = paymentUrl;
       } else {
         alert('Error: ' + data.message);
         setLoading(false);
