@@ -40,39 +40,54 @@ export async function POST(request: NextRequest) {
 
     console.log(`🔄 Creating payment for ${email}, amount: ${amount}, txId: ${transactionId}`);
 
-    // Create expired date in Flip's format: YYYY-MM-DD HH:mm
-    const expiredDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const flipExpiredDate = expiredDate.toISOString().slice(0, 16).replace('T', ' ');
-
     // Create auth header
     const authHeader = `Basic ${Buffer.from(process.env.FLIP_SECRET_KEY + ":").toString("base64")}`;
 
-    const requestBody = {
-      title: title || "Voucher Purchase",
-      type: "SINGLE",
-      amount: amount,
-      expired_date: flipExpiredDate,
-      redirect_url: `https://functional-method-830499.framer.app/success?txId=${transactionId}`,
-      step: "direct_api",
-      sender_email: email,
-    };
+    // Create form-encoded data (v2 uses form data, not JSON!)
+    const formData = new URLSearchParams();
+    formData.append('step', '1');
+    formData.append('title', title || 'Voucher Purchase');
+    formData.append('amount', amount.toString());
+    formData.append('type', 'SINGLE');
+    formData.append('redirect_url', `https://functional-method-830499.framer.app/success?txId=${transactionId}`);
+    formData.append('sender_email', email);
 
-    console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
+    console.log("📤 Request data:", formData.toString());
 
-    // FIXED: Use v3 sandbox endpoint
-    const flipResponse = await fetch("https://bigflip.id/api/v3/pwf/bill", {
+    // Use v2 endpoint with form-encoded data
+    const flipResponse = await fetch("https://bigflip.id/big_sandbox_api/v2/pwf/bill", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
         Authorization: authHeader,
       },
-      body: JSON.stringify(requestBody),
+      body: formData.toString(),
     });
 
-    const flipData = await flipResponse.json();
+    const responseText = await flipResponse.text();
+    console.log("📥 Flip API raw response:", responseText);
 
-    console.log("📥 Flip API response:", flipData);
+    let flipData;
+    try {
+      flipData = JSON.parse(responseText);
+    } catch (e) {
+      console.error("❌ Failed to parse Flip response:", responseText);
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: "Invalid response from Flip",
+          raw_response: responseText
+        },
+        { 
+          status: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+          }
+        }
+      );
+    }
 
     if (!flipData.link_url) {
       console.error("❌ No payment link returned from Flip");
