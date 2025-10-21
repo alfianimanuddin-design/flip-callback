@@ -24,6 +24,11 @@ export async function POST(request: NextRequest) {
 
     console.log(`🔄 Creating payment for ${email}, amount: ${amount}, txId: ${transactionId}`);
 
+    // ADD THESE DEBUG LINES:
+    console.log("🔑 API Key exists:", !!process.env.FLIP_SECRET_KEY);
+    console.log("🔑 API Key length:", process.env.FLIP_SECRET_KEY?.length);
+    console.log("🔑 API Key first 10 chars:", process.env.FLIP_SECRET_KEY?.substring(0, 10));
+
     // Create payment with Flip API
     const flipResponse = await fetch("https://bigflip.id/api/v2/pwf/bill", {
       method: "POST",
@@ -110,3 +115,4 @@ export async function OPTIONS() {
     },
   });
 }
+
