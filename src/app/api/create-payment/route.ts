@@ -35,21 +35,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate a unique transaction ID
-    const transactionId = `TX-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    console.log(`🔄 Creating payment for ${email}, amount: ${amount}, txId: ${transactionId}`);
+    console.log(`🔄 Creating payment for ${email}, amount: ${amount}`);
 
     // Create auth header
     const authHeader = `Basic ${Buffer.from(process.env.FLIP_SECRET_KEY + ":").toString("base64")}`;
 
-    // Create form-encoded data (v2 uses form data, not JSON!)
+    // Create form-encoded data - DON'T set redirect_url yet, we'll get the transaction ID first
     const formData = new URLSearchParams();
     formData.append('step', '1');
     formData.append('title', title || 'Voucher Purchase');
     formData.append('amount', amount.toString());
     formData.append('type', 'SINGLE');
-    formData.append('redirect_url', `https://functional-method-830499.framer.app/success?txId=${transactionId}`);
     formData.append('sender_email', email);
 
     console.log("📤 Request data:", formData.toString());
@@ -109,8 +105,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get the transaction ID from Flip's response
+    const transactionId = flipData.link_id || flipData.bill_link_id || flipData.id;
+    
+    if (!transactionId) {
+      console.error("❌ No transaction ID in Flip response:", flipData);
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: "Transaction ID not found in response",
+          flip_response: flipData
+        },
+        { 
+          status: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+          }
+        }
+      );
+    }
+
     console.log(`✅ Payment created successfully: ${transactionId}`);
     console.log(`🔗 Payment link: ${flipData.link_url}`);
+
+    // Now update the bill with the redirect URL using the real transaction ID
+    const updateFormData = new URLSearchParams();
+    updateFormData.append('step', '2');
+    updateFormData.append('redirect_url', `https://functional-method-830499.framer.app/success?txId=${transactionId}`);
+
+    const updateResponse = await fetch(`https://bigflip.id/big_sandbox_api/v2/pwf/bill/${transactionId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: authHeader,
+      },
+      body: updateFormData.toString(),
+    });
+
+    if (!updateResponse.ok) {
+      console.warn("⚠️ Failed to update redirect URL, but payment was created");
+    }
 
     return NextResponse.json(
       {

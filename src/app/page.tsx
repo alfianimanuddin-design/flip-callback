@@ -12,9 +12,9 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: 50000,
+          amount: 20000,
           email: 'customer@example.com',
-          title: 'Voucher Purchase'
+          title: 'Voucher Kopi Kenangan - Flip Jajan'
         })
       });
 
