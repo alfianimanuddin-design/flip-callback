@@ -6,7 +6,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface FlipCallbackData {
   id: string;
-  bill_link_id?: number; // ✅ Added
+  bill_link_id?: number; // ← This line must be here
   amount: number;
   status: string;
   sender_email: string;
