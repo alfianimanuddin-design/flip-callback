@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Basic ${Buffer.from(process.env.FLIP_SECRET_KEY + ":").toString("base64")}`,
+        Authorization: `Basic ${Buffer.from(process.env.FLIP_SECRET_KEY!).toString("base64")}`,
       },
       body: JSON.stringify({
         title: title || "Voucher Purchase",
