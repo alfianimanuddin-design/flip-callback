@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
 
     // FIXED: Use v3 sandbox endpoint
-    const flipResponse = await fetch("https://bigflip.id/big_sandbox_api/v3/pwf/bill", {
+    const flipResponse = await fetch("https://bigflip.id/api/v3/pwf/bill", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
