@@ -48,7 +48,12 @@ export async function POST(request: NextRequest) {
     if (!flipData.link_url) {
       console.error("❌ No payment link returned from Flip");
       return NextResponse.json(
-        { success: false, message: "Failed to create payment link" },
+        { 
+          success: false, 
+          message: "Failed to create payment link",
+          flip_response: flipData,  // ADDED - Shows what Flip returned
+          flip_status: flipResponse.status  // ADDED - Shows HTTP status code
+        },
         { 
           status: 500,
           headers: {
