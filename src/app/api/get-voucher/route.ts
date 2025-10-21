@@ -22,10 +22,11 @@ export async function GET(request: NextRequest) {
 
     console.log(`🔍 Checking voucher for transaction: ${txId}`);
 
+    // Try to find by transaction_id OR temp_id
     const { data: transaction, error } = await supabase
       .from("transactions")
-      .select("transaction_id, email, voucher_code, amount, status")
-      .eq("transaction_id", txId)
+      .select("transaction_id, email, voucher_code, amount, status, temp_id")
+      .or(`transaction_id.eq.${txId},temp_id.eq.${txId}`)
       .single();
 
     if (error || !transaction) {
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        transaction_id: transaction.transaction_id,
+        transaction_id: transaction.transaction_id || transaction.temp_id,
         voucher_code: transaction.voucher_code,
         amount: transaction.amount,
         email: transaction.email,

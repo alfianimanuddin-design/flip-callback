@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if transaction already exists
+    // Check if transaction already exists with this Flip transaction ID
     const { data: existingTx } = await supabase
       .from("transactions")
       .select("*")
@@ -66,19 +66,49 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Find the pending transaction by email and amount (this has the temp_id)
+    const { data: pendingTx } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("email", sender_email)
+      .eq("amount", amount)
+      .eq("status", "PENDING")
+      .is("transaction_id", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    console.log(pendingTx ? `✅ Found pending transaction with temp_id: ${pendingTx.temp_id}` : "⚠️ No pending transaction found");
+
     // Only assign voucher for successful payments
     if (status !== "SUCCESSFUL") {
       console.log(`⏳ Transaction status: ${status} - not assigning voucher yet`);
       
-      const { error: txError } = await supabase.from("transactions").insert({
-        transaction_id: transactionId,
-        email: sender_email,
-        amount: amount,
-        status: status,
-      });
+      if (pendingTx) {
+        // Update existing pending transaction with Flip's transaction ID
+        const { error: updateError } = await supabase
+          .from("transactions")
+          .update({
+            transaction_id: transactionId,
+            status: status,
+          })
+          .eq("id", pendingTx.id);
 
-      if (txError) {
-        console.error("❌ Error storing pending transaction:", txError);
+        if (updateError) {
+          console.error("❌ Error updating pending transaction:", updateError);
+        }
+      } else {
+        // Create new transaction if no pending found
+        const { error: txError } = await supabase.from("transactions").insert({
+          transaction_id: transactionId,
+          email: sender_email,
+          amount: amount,
+          status: status,
+        });
+
+        if (txError) {
+          console.error("❌ Error storing pending transaction:", txError);
+        }
       }
 
       return NextResponse.json({
@@ -100,12 +130,22 @@ export async function POST(request: NextRequest) {
     if (voucherError || !voucher) {
       console.error("❌ No available vouchers:", voucherError);
 
-      await supabase.from("transactions").insert({
-        transaction_id: transactionId,
-        email: sender_email,
-        amount: amount,
-        status: status,
-      });
+      if (pendingTx) {
+        await supabase
+          .from("transactions")
+          .update({
+            transaction_id: transactionId,
+            status: status,
+          })
+          .eq("id", pendingTx.id);
+      } else {
+        await supabase.from("transactions").insert({
+          transaction_id: transactionId,
+          email: sender_email,
+          amount: amount,
+          status: status,
+        });
+      }
 
       return NextResponse.json({
         success: true,
@@ -134,34 +174,68 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create transaction record
-    const { error: txError } = await supabase
-      .from("transactions")
-      .insert({
-        transaction_id: transactionId,
-        email: sender_email,
-        voucher_code: voucher.code,
-        amount: amount,
-        status: status,
-      });
-
-    if (txError) {
-      console.error("❌ Error creating transaction:", txError);
-
-      // Rollback
-      await supabase
-        .from("vouchers")
-        .update({ 
-          used: false,
-          used_at: null,
-          used_by: null
+    // Update or create transaction record
+    if (pendingTx) {
+      // Update the pending transaction with Flip's ID and voucher
+      console.log(`🔗 Linking temp_id ${pendingTx.temp_id} with Flip transaction_id ${transactionId}`);
+      
+      const { error: txError } = await supabase
+        .from("transactions")
+        .update({
+          transaction_id: transactionId,
+          voucher_code: voucher.code,
+          status: status,
         })
-        .eq("code", voucher.code);
+        .eq("id", pendingTx.id);
 
-      return NextResponse.json({
-        success: true,
-        message: "Failed to create transaction",
-      });
+      if (txError) {
+        console.error("❌ Error updating transaction:", txError);
+
+        // Rollback
+        await supabase
+          .from("vouchers")
+          .update({ 
+            used: false,
+            used_at: null,
+            used_by: null
+          })
+          .eq("code", voucher.code);
+
+        return NextResponse.json({
+          success: true,
+          message: "Failed to update transaction",
+        });
+      }
+    } else {
+      // Create new transaction if no pending found
+      const { error: txError } = await supabase
+        .from("transactions")
+        .insert({
+          transaction_id: transactionId,
+          email: sender_email,
+          voucher_code: voucher.code,
+          amount: amount,
+          status: status,
+        });
+
+      if (txError) {
+        console.error("❌ Error creating transaction:", txError);
+
+        // Rollback
+        await supabase
+          .from("vouchers")
+          .update({ 
+            used: false,
+            used_at: null,
+            used_by: null
+          })
+          .eq("code", voucher.code);
+
+        return NextResponse.json({
+          success: true,
+          message: "Failed to create transaction",
+        });
+      }
     }
 
     console.log(`✅ SUCCESS: Assigned voucher ${voucher.code} to ${sender_email}`);
