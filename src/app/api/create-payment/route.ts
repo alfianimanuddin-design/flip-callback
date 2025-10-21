@@ -108,22 +108,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 2: Extract the bill_link (transaction ID) from Flip's response
-    // The field name might be: link_id, bill_link_id, id, or bill_link
-    const billLink =
-      flipData.link_id ||
-      flipData.bill_link_id ||
-      flipData.id ||
-      flipData.bill_link;
+    // Step 2: Extract BOTH IDs from Flip's response
+    console.log("📋 Full Flip response:", JSON.stringify(flipData, null, 2));
+    console.log("📋 Available fields:", Object.keys(flipData));
 
-    if (!billLink) {
-      console.error("❌ No bill_link found in response:", flipData);
-      console.log("📋 Available fields:", Object.keys(flipData));
+    // transactionId: Full transaction ID (PGPWF...) - for redirect URL
+    // billLinkId: Numeric ID - for API endpoint
+    // Try multiple possible field names as fallback
+    const transactionId =
+      flipData.bill_payment ||
+      flipData.id ||
+      flipData.transaction_id ||
+      flipData.link_id;
+    const billLinkId = flipData.link_id || flipData.bill_link_id || flipData.id;
+
+    console.log(`🔍 Transaction ID: ${transactionId}`);
+    console.log(`🔍 Bill Link ID: ${billLinkId}`);
+
+    if (!transactionId) {
+      console.error("❌ Transaction ID not found");
+      console.log("📋 flipData.id:", flipData.id);
+      console.log("📋 Full response:", JSON.stringify(flipData, null, 2));
+    }
+
+    if (!billLinkId) {
+      console.error("❌ Bill Link ID not found");
+      console.log("📋 flipData.bill_link_id:", flipData.bill_link_id);
+      console.log("📋 Full response:", JSON.stringify(flipData, null, 2));
+    }
+
+    if (!transactionId || !billLinkId) {
       return NextResponse.json(
         {
           success: false,
-          message: "Bill link not found in response",
+          message: "Transaction ID or bill_link_id not found in response",
           flip_response: flipData,
+          available_fields: Object.keys(flipData),
         },
         {
           status: 500,
@@ -136,20 +156,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`✅ Bill link obtained: ${billLink}`);
+    console.log(`✅ Transaction ID obtained: ${transactionId}`);
+    console.log(`✅ Bill Link ID obtained: ${billLinkId}`);
 
-    // Step 3: Update the payment with redirect_url using the bill_link
+    // Step 3: Update the payment with redirect_url
     const updateFormData = new URLSearchParams();
     updateFormData.append("step", "2");
     updateFormData.append(
       "redirect_url",
-      `https://functional-method-830499.framer.app/success?bill_link=${billLink}`
+      `https://flip-callback.vercel.app/api/redirect-payment?bill_link_id=${billLinkId}`
     );
 
-    console.log(`📤 Step 2 - Updating redirect URL for bill: ${billLink}`);
+    console.log(`📤 Step 2 - Updating redirect URL for bill: ${billLinkId}`);
 
     const updateResponse = await fetch(
-      `https://bigflip.id/big_sandbox_api/v2/pwf/${billLink}/bill`,
+      `https://bigflip.id/big_sandbox_api/v2/pwf/${billLinkId}/bill`,
       {
         method: "PUT",
         headers: {
@@ -168,14 +189,14 @@ export async function POST(request: NextRequest) {
       console.log("✅ Redirect URL updated successfully");
     }
 
-    console.log(`✅ Payment created successfully: ${billLink}`);
+    console.log(`✅ Payment created successfully: ${transactionId}`);
     console.log(`🔗 Payment link: ${flipData.link_url}`);
 
     return NextResponse.json(
       {
         success: true,
         payment_url: flipData.link_url,
-        transaction_id: billLink,
+        transaction_id: transactionId,
       },
       {
         headers: {

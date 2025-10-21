@@ -6,6 +6,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface FlipCallbackData {
   id: string;
+  bill_link_id?: number; // ✅ Added
   amount: number;
   status: string;
   sender_email: string;
@@ -16,30 +17,43 @@ export async function POST(request: NextRequest) {
   try {
     // Check content type
     const contentType = request.headers.get("content-type") || "";
-    
+
     let body: FlipCallbackData;
-    
+
     if (contentType.includes("application/x-www-form-urlencoded")) {
       // Flip sends form-encoded data with JSON inside a "data" parameter
       const formData = await request.formData();
       const dataString = formData.get("data") as string;
-      
+
       console.log("📥 Form data received:", dataString);
-      
+
       if (!dataString) {
         console.error("❌ No 'data' parameter in form");
-        return NextResponse.json({ success: true, message: "No data parameter" });
+        return NextResponse.json({
+          success: true,
+          message: "No data parameter",
+        });
       }
-      
+
       body = JSON.parse(dataString);
     } else {
       // Standard JSON
       body = await request.json();
     }
 
-    console.log("📥 Flip callback received - FULL PAYLOAD:", JSON.stringify(body, null, 2));
+    console.log(
+      "📥 Flip callback received - FULL PAYLOAD:",
+      JSON.stringify(body, null, 2)
+    );
 
-    const { id: transactionId, amount, status, sender_email, payment_method } = body;
+    const {
+      id: transactionId,
+      bill_link_id,
+      amount,
+      status,
+      sender_email,
+      payment_method,
+    } = body; // ✅ Added bill_link_id
 
     // Validate required fields
     if (!transactionId || !sender_email) {
@@ -49,6 +63,10 @@ export async function POST(request: NextRequest) {
         { status: 200 }
       );
     }
+
+    console.log(
+      `🔍 Transaction ID: ${transactionId}, Bill Link ID: ${bill_link_id}`
+    ); // ✅ Added logging
 
     // Check if transaction already exists with this Flip transaction ID
     const { data: existingTx } = await supabase
@@ -78,18 +96,25 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .single();
 
-    console.log(pendingTx ? `✅ Found pending transaction with temp_id: ${pendingTx.temp_id}` : "⚠️ No pending transaction found");
+    console.log(
+      pendingTx
+        ? `✅ Found pending transaction with temp_id: ${pendingTx.temp_id}`
+        : "⚠️ No pending transaction found"
+    );
 
     // Only assign voucher for successful payments
     if (status !== "SUCCESSFUL") {
-      console.log(`⏳ Transaction status: ${status} - not assigning voucher yet`);
-      
+      console.log(
+        `⏳ Transaction status: ${status} - not assigning voucher yet`
+      );
+
       if (pendingTx) {
         // Update existing pending transaction with Flip's transaction ID
         const { error: updateError } = await supabase
           .from("transactions")
           .update({
             transaction_id: transactionId,
+            bill_link_id: bill_link_id, // ✅ Added
             status: status,
           })
           .eq("id", pendingTx.id);
@@ -101,6 +126,7 @@ export async function POST(request: NextRequest) {
         // Create new transaction if no pending found
         const { error: txError } = await supabase.from("transactions").insert({
           transaction_id: transactionId,
+          bill_link_id: bill_link_id, // ✅ Added
           email: sender_email,
           amount: amount,
           status: status,
@@ -119,7 +145,7 @@ export async function POST(request: NextRequest) {
 
     // Get an unused voucher
     console.log("🔍 Looking for available voucher...");
-    
+
     const { data: voucher, error: voucherError } = await supabase
       .from("vouchers")
       .select("code")
@@ -135,12 +161,14 @@ export async function POST(request: NextRequest) {
           .from("transactions")
           .update({
             transaction_id: transactionId,
+            bill_link_id: bill_link_id, // ✅ Added
             status: status,
           })
           .eq("id", pendingTx.id);
       } else {
         await supabase.from("transactions").insert({
           transaction_id: transactionId,
+          bill_link_id: bill_link_id, // ✅ Added
           email: sender_email,
           amount: amount,
           status: status,
@@ -158,10 +186,10 @@ export async function POST(request: NextRequest) {
     // Mark voucher as used
     const { error: updateError } = await supabase
       .from("vouchers")
-      .update({ 
+      .update({
         used: true,
         used_at: new Date().toISOString(),
-        used_by: sender_email
+        used_by: sender_email,
       })
       .eq("code", voucher.code)
       .eq("used", false);
@@ -177,12 +205,15 @@ export async function POST(request: NextRequest) {
     // Update or create transaction record
     if (pendingTx) {
       // Update the pending transaction with Flip's ID and voucher
-      console.log(`🔗 Linking temp_id ${pendingTx.temp_id} with Flip transaction_id ${transactionId}`);
-      
+      console.log(
+        `🔗 Linking temp_id ${pendingTx.temp_id} with Flip transaction_id ${transactionId}`
+      );
+
       const { error: txError } = await supabase
         .from("transactions")
         .update({
           transaction_id: transactionId,
+          bill_link_id: bill_link_id, // ✅ Added
           voucher_code: voucher.code,
           status: status,
         })
@@ -194,10 +225,10 @@ export async function POST(request: NextRequest) {
         // Rollback
         await supabase
           .from("vouchers")
-          .update({ 
+          .update({
             used: false,
             used_at: null,
-            used_by: null
+            used_by: null,
           })
           .eq("code", voucher.code);
 
@@ -208,15 +239,14 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Create new transaction if no pending found
-      const { error: txError } = await supabase
-        .from("transactions")
-        .insert({
-          transaction_id: transactionId,
-          email: sender_email,
-          voucher_code: voucher.code,
-          amount: amount,
-          status: status,
-        });
+      const { error: txError } = await supabase.from("transactions").insert({
+        transaction_id: transactionId,
+        bill_link_id: bill_link_id, // ✅ Added
+        email: sender_email,
+        voucher_code: voucher.code,
+        amount: amount,
+        status: status,
+      });
 
       if (txError) {
         console.error("❌ Error creating transaction:", txError);
@@ -224,10 +254,10 @@ export async function POST(request: NextRequest) {
         // Rollback
         await supabase
           .from("vouchers")
-          .update({ 
+          .update({
             used: false,
             used_at: null,
-            used_by: null
+            used_by: null,
           })
           .eq("code", voucher.code);
 
@@ -238,7 +268,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`✅ SUCCESS: Assigned voucher ${voucher.code} to ${sender_email}`);
+    console.log(
+      `✅ SUCCESS: Assigned voucher ${voucher.code} to ${sender_email}`
+    );
 
     // Send email
     try {
@@ -254,7 +286,7 @@ export async function POST(request: NextRequest) {
               <h1 style="color: #333; font-size: 32px; letter-spacing: 4px; margin: 0;">${voucher.code}</h1>
             </div>
             <p><strong>Transaction ID:</strong> ${transactionId}</p>
-            <p><strong>Amount:</strong> Rp ${amount.toLocaleString('id-ID')}</p>
+            <p><strong>Amount:</strong> Rp ${amount.toLocaleString("id-ID")}</p>
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
             <p style="color: #666; font-size: 12px;">If you have any questions, please contact our support team.</p>
           </div>
@@ -269,17 +301,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       transaction_id: transactionId,
+      bill_link_id: bill_link_id, // ✅ Added to response
       voucher_code: voucher.code,
       email: sender_email,
     });
-    
   } catch (error) {
     console.error("💥 Callback error:", error);
-    
-    return NextResponse.json({
-      success: true,
-      message: "Error processing callback",
-    }, { status: 200 });
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Error processing callback",
+      },
+      { status: 200 }
+    );
   }
 }
 
