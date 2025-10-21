@@ -19,22 +19,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if API key exists
+    if (!process.env.FLIP_SECRET_KEY) {
+      console.error("❌ FLIP_SECRET_KEY is not set!");
+      return NextResponse.json(
+        { success: false, message: "API key not configured" },
+        { 
+          status: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+          }
+        }
+      );
+    }
+
     // Generate a unique transaction ID
     const transactionId = `TX-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     console.log(`🔄 Creating payment for ${email}, amount: ${amount}, txId: ${transactionId}`);
-
-    // ADD THESE DEBUG LINES:
     console.log("🔑 API Key exists:", !!process.env.FLIP_SECRET_KEY);
     console.log("🔑 API Key length:", process.env.FLIP_SECRET_KEY?.length);
     console.log("🔑 API Key first 10 chars:", process.env.FLIP_SECRET_KEY?.substring(0, 10));
+
+    // Create auth header safely
+    let authHeader;
+    try {
+      authHeader = `Basic ${Buffer.from(process.env.FLIP_SECRET_KEY + ":").toString("base64")}`;
+    } catch (authError) {
+      console.error("❌ Error creating auth header:", authError);
+      return NextResponse.json(
+        { success: false, message: "Error with API key format" },
+        { 
+          status: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+          }
+        }
+      );
+    }
 
     // Create payment with Flip API
     const flipResponse = await fetch("https://bigflip.id/api/v2/pwf/bill", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Basic ${Buffer.from(process.env.FLIP_SECRET_KEY + ":").toString("base64")}`,
+        Authorization: authHeader,
       },
       body: JSON.stringify({
         title: title || "Voucher Purchase",
@@ -56,8 +89,8 @@ export async function POST(request: NextRequest) {
         { 
           success: false, 
           message: "Failed to create payment link",
-          flip_response: flipData,  // ADDED - Shows what Flip returned
-          flip_status: flipResponse.status  // ADDED - Shows HTTP status code
+          flip_response: flipData,
+          flip_status: flipResponse.status
         },
         { 
           status: 500,
@@ -91,7 +124,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("❌ Error creating payment:", error);
     return NextResponse.json(
-      { success: false, message: "Failed to create payment" },
+      { 
+        success: false, 
+        message: "Failed to create payment",
+        error: error instanceof Error ? error.message : "Unknown error"
+      },
       { 
         status: 500,
         headers: {
@@ -115,4 +152,3 @@ export async function OPTIONS() {
     },
   });
 }
-
