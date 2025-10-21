@@ -4,11 +4,11 @@ import { supabase } from "@/lib/supabase";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const txId = searchParams.get("txId");
+    const billLink = searchParams.get("bill_link");
 
-    if (!txId) {
+    if (!billLink) {
       return NextResponse.json(
-        { success: false, message: "Missing transaction ID" },
+        { success: false, message: "Missing bill_link parameter" },
         { 
           status: 400,
           headers: {
@@ -20,17 +20,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`🔍 Checking voucher for transaction: ${txId}`);
+    console.log(`🔍 Checking voucher for bill_link: ${billLink}`);
 
-    // Try to find by transaction_id OR temp_id
+    // Find by transaction_id (which is the bill_link from Flip)
     const { data: transaction, error } = await supabase
       .from("transactions")
-      .select("transaction_id, email, voucher_code, amount, status, temp_id")
-      .or(`transaction_id.eq.${txId},temp_id.eq.${txId}`)
+      .select("transaction_id, email, voucher_code, amount, status")
+      .eq("transaction_id", billLink)
       .single();
 
     if (error || !transaction) {
-      console.log(`⚠️ Transaction not found yet: ${txId}`);
+      console.log(`⚠️ Transaction not found yet: ${billLink}`);
       return NextResponse.json(
         {
           success: false,
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!transaction.voucher_code) {
-      console.log(`⏳ Voucher not assigned yet for: ${txId}`);
+      console.log(`⏳ Voucher not assigned yet for: ${billLink}`);
       return NextResponse.json(
         {
           success: false,
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        transaction_id: transaction.transaction_id || transaction.temp_id,
+        transaction_id: transaction.transaction_id,
         voucher_code: transaction.voucher_code,
         amount: transaction.amount,
         email: transaction.email,

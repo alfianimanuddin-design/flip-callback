@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,41 +35,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate a unique temporary transaction ID
-    const tempId = `TX-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    console.log(`🔄 Creating payment for ${email}, amount: ${amount}, tempId: ${tempId}`);
-
-    // Store temporary transaction in database
-    const { error: tempError } = await supabase
-      .from("transactions")
-      .insert({
-        temp_id: tempId,
-        email: email,
-        amount: amount,
-        status: "PENDING",
-      });
-
-    if (tempError) {
-      console.error("❌ Error storing temp transaction:", tempError);
-      // Continue anyway, we can still process the payment
-    }
+    console.log(`🔄 Creating payment for ${email}, amount: ${amount}`);
 
     // Create auth header
     const authHeader = `Basic ${Buffer.from(process.env.FLIP_SECRET_KEY + ":").toString("base64")}`;
 
-    // Create form-encoded data with temp_id in redirect URL
+    // Step 1: Create payment WITHOUT redirect_url first
     const formData = new URLSearchParams();
     formData.append('step', '1');
     formData.append('title', title || 'Voucher Purchase');
     formData.append('amount', amount.toString());
     formData.append('type', 'SINGLE');
-    formData.append('redirect_url', `https://functional-method-830499.framer.app/success?txId=${tempId}`);
     formData.append('sender_email', email);
+    // Note: NO redirect_url here yet
 
-    console.log("📤 Request data:", formData.toString());
+    console.log("📤 Step 1 - Creating payment:", formData.toString());
 
-    // Use v2 endpoint with form-encoded data
     const flipResponse = await fetch("https://bigflip.id/big_sandbox_api/v2/pwf/bill", {
       method: "POST",
       headers: {
@@ -125,14 +105,64 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`✅ Payment created successfully with tempId: ${tempId}`);
+    // Step 2: Extract the bill_link (transaction ID) from Flip's response
+    // The field name might be: link_id, bill_link_id, id, or bill_link
+    const billLink = flipData.link_id || flipData.bill_link_id || flipData.id || flipData.bill_link;
+    
+    if (!billLink) {
+      console.error("❌ No bill_link found in response:", flipData);
+      console.log("📋 Available fields:", Object.keys(flipData));
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: "Bill link not found in response",
+          flip_response: flipData
+        },
+        { 
+          status: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+          }
+        }
+      );
+    }
+
+    console.log(`✅ Bill link obtained: ${billLink}`);
+
+    // Step 3: Update the payment with redirect_url using the bill_link
+    const updateFormData = new URLSearchParams();
+    updateFormData.append('step', '2');
+    updateFormData.append('redirect_url', `https://functional-method-830499.framer.app/success?bill_link=${billLink}`);
+
+    console.log(`📤 Step 2 - Updating redirect URL for bill: ${billLink}`);
+
+    const updateResponse = await fetch(`https://bigflip.id/big_sandbox_api/v2/pwf/bill/${billLink}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: authHeader,
+      },
+      body: updateFormData.toString(),
+    });
+
+    if (!updateResponse.ok) {
+      const updateError = await updateResponse.text();
+      console.warn("⚠️ Failed to update redirect URL:", updateError);
+      // Continue anyway, payment was created successfully
+    } else {
+      console.log("✅ Redirect URL updated successfully");
+    }
+
+    console.log(`✅ Payment created successfully: ${billLink}`);
     console.log(`🔗 Payment link: ${flipData.link_url}`);
 
     return NextResponse.json(
       {
         success: true,
         payment_url: flipData.link_url,
-        transaction_id: tempId,
+        transaction_id: billLink,
       },
       {
         headers: {
