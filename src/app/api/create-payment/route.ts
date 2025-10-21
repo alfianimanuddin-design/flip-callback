@@ -39,44 +39,35 @@ export async function POST(request: NextRequest) {
     const transactionId = `TX-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     console.log(`🔄 Creating payment for ${email}, amount: ${amount}, txId: ${transactionId}`);
-    console.log("🔑 API Key exists:", !!process.env.FLIP_SECRET_KEY);
-    console.log("🔑 API Key length:", process.env.FLIP_SECRET_KEY?.length);
-    console.log("🔑 API Key first 10 chars:", process.env.FLIP_SECRET_KEY?.substring(0, 10));
 
-    // Create auth header safely
-    let authHeader;
-    try {
-      authHeader = `Basic ${Buffer.from(process.env.FLIP_SECRET_KEY + ":").toString("base64")}`;
-    } catch (authError) {
-      console.error("❌ Error creating auth header:", authError);
-      return NextResponse.json(
-        { success: false, message: "Error with API key format" },
-        { 
-          status: 500,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
-          }
-        }
-      );
-    }
+    // Create expired date in Flip's format: YYYY-MM-DD HH:mm
+    const expiredDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const flipExpiredDate = expiredDate.toISOString().slice(0, 16).replace('T', ' ');
 
-    // Create payment with Flip API
-    const flipResponse = await fetch("https://bigflip.id/api/v2/pwf/bill", {
+    // Create auth header
+    const authHeader = `Basic ${Buffer.from(process.env.FLIP_SECRET_KEY + ":").toString("base64")}`;
+
+    const requestBody = {
+      title: title || "Voucher Purchase",
+      type: "SINGLE",
+      amount: amount,
+      expired_date: flipExpiredDate,
+      redirect_url: `https://functional-method-830499.framer.app/success?txId=${transactionId}`,
+      step: "direct_api",
+      sender_email: email,
+    };
+
+    console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
+
+    // FIXED: Use v3 sandbox endpoint
+    const flipResponse = await fetch("https://bigflip.id/big_sandbox_api/v3/pwf/bill", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Accept": "application/json",
         Authorization: authHeader,
       },
-      body: JSON.stringify({
-        title: title || "Voucher Purchase",
-        amount: amount,
-        type: "SINGLE",
-        expired_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        redirect_url: `https://functional-method-830499.framer.app/success?txId=${transactionId}`,
-        sender_email: email,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     const flipData = await flipResponse.json();
