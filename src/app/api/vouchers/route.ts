@@ -27,17 +27,34 @@ export async function GET(request: NextRequest) {
           message: "Failed to fetch vouchers from database",
           error: error.message,
         },
-        { status: 500 }
+        {
+          status: 500,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        }
       );
     }
 
     console.log(`✅ Found ${vouchers?.length || 0} available vouchers`);
 
-    return NextResponse.json({
-      success: true,
-      vouchers: vouchers || [],
-      count: vouchers?.length || 0,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        vouchers: vouchers || [],
+        count: vouchers?.length || 0,
+      },
+      {
+        status: 200,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+        },
+      }
+    );
   } catch (error) {
     console.error("❌ Error fetching vouchers:", error);
     return NextResponse.json(
@@ -46,7 +63,14 @@ export async function GET(request: NextRequest) {
         message: "Failed to fetch vouchers",
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+        },
+      }
     );
   }
 }
