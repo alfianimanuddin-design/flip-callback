@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
   try {
-    const { amount, email, title } = await request.json();
+    const {
+      amount,
+      discounted_amount,
+      email,
+      title,
+      product_name,
+      name,
+      sender_bank_type,
+    } = await request.json();
 
     // Validate inputs
-    if (!amount || !email) {
+    if (!amount || !email || !product_name || !name) {
       return NextResponse.json(
-        { success: false, message: "Amount and email are required" },
+        {
+          success: false,
+          message: "Amount, email, product_name, and name are required",
+        },
         {
           status: 400,
           headers: {
@@ -18,6 +30,8 @@ export async function POST(request: NextRequest) {
         }
       );
     }
+
+    let tempId = "";
 
     // Check if API key exists
     if (!process.env.FLIP_SECRET_KEY) {
@@ -35,21 +49,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`🔄 Creating payment for ${email}, amount: ${amount}`);
+    // Use discounted amount if available, otherwise use regular amount
+    const actualAmount = discounted_amount || amount;
+    const hasDiscount =
+      discounted_amount !== null && discounted_amount !== undefined;
+
+    console.log(
+      `🔄 Creating payment for ${name} (${email}), ${hasDiscount ? `original: ${amount}, discounted: ${actualAmount}` : `amount: ${actualAmount}`}`
+    );
+
+    // Create pending transaction with product_name
+    tempId = `TEMP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    const { error: pendingError } = await supabase.from("transactions").insert({
+      temp_id: tempId,
+      name: name,
+      email: email,
+      amount: actualAmount, // Store the actual amount paid
+      product_name: product_name,
+      status: "PENDING",
+    });
+
+    if (pendingError) {
+      console.error("❌ Error creating pending transaction:", pendingError);
+    }
+
+    console.log(`📝 Created pending transaction with product: ${product_name}`);
 
     // Create auth header
     const authHeader = `Basic ${Buffer.from(process.env.FLIP_SECRET_KEY + ":").toString("base64")}`;
 
-    // Step 1: Create payment WITHOUT redirect_url first
+    // Step 3: Create payment with pre-filled customer data
     const formData = new URLSearchParams();
-    formData.append("step", "1");
+    formData.append("step", "3");
     formData.append("title", title || "Voucher Purchase");
-    formData.append("amount", amount.toString());
+    formData.append("amount", actualAmount.toString()); // Use actual amount for payment
     formData.append("type", "SINGLE");
+    formData.append("sender_name", name);
     formData.append("sender_email", email);
-    // Note: NO redirect_url here yet
+    formData.append("sender_bank", "qris");
+    formData.append("sender_bank_type", "wallet_account");
+    formData.append(
+      "redirect_url",
+      `https://flip-callback.vercel.app/api/redirect-payment?temp_id=${tempId}`
+    );
 
-    console.log("📤 Step 1 - Creating payment:", formData.toString());
+    console.log("📤 Step 3 - Creating payment:", formData.toString());
 
     const flipResponse = await fetch(
       "https://bigflip.id/big_sandbox_api/v2/pwf/bill",
@@ -88,7 +133,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!flipData.link_url) {
+    // v3 API uses payment_url or link_url
+    const paymentUrl = flipData.payment_url || flipData.link_url;
+
+    if (!paymentUrl) {
       console.error("❌ No payment link returned from Flip");
       return NextResponse.json(
         {
@@ -108,95 +156,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 2: Extract BOTH IDs from Flip's response
     console.log("📋 Full Flip response:", JSON.stringify(flipData, null, 2));
-    console.log("📋 Available fields:", Object.keys(flipData));
+    console.log(`✅ Payment created successfully`);
+    console.log(`🔗 Payment link: ${paymentUrl}`);
+    console.log(`🆔 Transaction ID: ${flipData.bill_payment?.id}`);
+    console.log(`🔗 Link ID: ${flipData.link_id}`);
 
-    // transactionId: Full transaction ID (PGPWF...) - for redirect URL
-    // billLinkId: Numeric ID - for API endpoint
-    // Try multiple possible field names as fallback
-    const transactionId =
-      flipData.bill_payment ||
-      flipData.id ||
-      flipData.transaction_id ||
-      flipData.link_id;
-    const billLinkId = flipData.link_id || flipData.bill_link_id || flipData.id;
+    // Update pending transaction with bill_link_id
+    if (flipData.link_id && tempId) {
+      await supabase
+        .from("transactions")
+        .update({
+          bill_link_id: flipData.link_id,
+          transaction_id: flipData.bill_payment?.id,
+        })
+        .eq("temp_id", tempId);
 
-    console.log(`🔍 Transaction ID: ${transactionId}`);
-    console.log(`🔍 Bill Link ID: ${billLinkId}`);
-
-    if (!transactionId) {
-      console.error("❌ Transaction ID not found");
-      console.log("📋 flipData.id:", flipData.id);
-      console.log("📋 Full response:", JSON.stringify(flipData, null, 2));
-    }
-
-    if (!billLinkId) {
-      console.error("❌ Bill Link ID not found");
-      console.log("📋 flipData.bill_link_id:", flipData.bill_link_id);
-      console.log("📋 Full response:", JSON.stringify(flipData, null, 2));
-    }
-
-    if (!transactionId || !billLinkId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Transaction ID or bill_link_id not found in response",
-          flip_response: flipData,
-          available_fields: Object.keys(flipData),
-        },
-        {
-          status: 500,
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-          },
-        }
+      console.log(
+        `✅ Updated pending tx with bill_link_id: ${flipData.link_id}`
       );
     }
-
-    console.log(`✅ Transaction ID obtained: ${transactionId}`);
-    console.log(`✅ Bill Link ID obtained: ${billLinkId}`);
-
-    // Step 3: Update the payment with redirect_url
-    const updateFormData = new URLSearchParams();
-    updateFormData.append("step", "2");
-    updateFormData.append(
-      "redirect_url",
-      `https://flip-callback.vercel.app/api/redirect-payment?bill_link_id=${billLinkId}`
-    );
-
-    console.log(`📤 Step 2 - Updating redirect URL for bill: ${billLinkId}`);
-
-    const updateResponse = await fetch(
-      `https://bigflip.id/big_sandbox_api/v2/pwf/${billLinkId}/bill`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: authHeader,
-        },
-        body: updateFormData.toString(),
-      }
-    );
-
-    if (!updateResponse.ok) {
-      const updateError = await updateResponse.text();
-      console.warn("⚠️ Failed to update redirect URL:", updateError);
-      // Continue anyway, payment was created successfully
-    } else {
-      console.log("✅ Redirect URL updated successfully");
-    }
-
-    console.log(`✅ Payment created successfully: ${transactionId}`);
-    console.log(`🔗 Payment link: ${flipData.link_url}`);
 
     return NextResponse.json(
       {
         success: true,
-        payment_url: flipData.link_url,
-        transaction_id: transactionId,
+        payment_url: paymentUrl,
+        transaction_id: flipData.bill_payment?.id,
+        link_id: flipData.link_id,
+        amount: actualAmount,
+        original_amount: hasDiscount ? amount : undefined,
+        has_discount: hasDiscount,
       },
       {
         headers: {

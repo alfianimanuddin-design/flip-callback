@@ -48,6 +48,26 @@ export async function GET(request: NextRequest) {
       `✅ Found transaction with voucher: ${transaction.voucher_code}`
     );
 
+    // Get voucher details including pricing
+    let voucherDetails = null;
+    if (transaction.voucher_code) {
+      const { data: voucher } = await supabase
+        .from("vouchers")
+        .select("amount, discounted_amount, product_name")
+        .eq("code", transaction.voucher_code)
+        .single();
+
+      if (voucher) {
+        voucherDetails = {
+          regular_price: voucher.amount,
+          discounted_price: voucher.discounted_amount,
+          final_price: voucher.discounted_amount || voucher.amount,
+          has_discount: voucher.discounted_amount !== null,
+          product_name: voucher.product_name,
+        };
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -56,6 +76,7 @@ export async function GET(request: NextRequest) {
         amount: transaction.amount,
         email: transaction.email,
         status: transaction.status,
+        voucher_details: voucherDetails,
       },
       {
         headers: {

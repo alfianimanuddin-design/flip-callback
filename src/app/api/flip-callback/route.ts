@@ -126,7 +126,8 @@ export async function POST(request: NextRequest) {
         // Create new transaction if no pending found
         const { error: txError } = await supabase.from("transactions").insert({
           transaction_id: transactionId,
-          bill_link_id: bill_link_id, // ✅ Added
+          bill_link_id: bill_link_id,
+          name: pendingTx?.name || "Customer",
           email: sender_email,
           amount: amount,
           status: status,
@@ -143,13 +144,23 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Get an unused voucher
-    console.log("🔍 Looking for available voucher...");
+    // Get an unused voucher matching the product
+    const productName = pendingTx?.product_name;
+    console.log(
+      `🔍 Looking for available voucher for product: ${productName}...`
+    );
 
-    const { data: voucher, error: voucherError } = await supabase
+    let voucherQuery = supabase
       .from("vouchers")
-      .select("code")
-      .eq("used", false)
+      .select("code, product_name, amount, discounted_amount")
+      .eq("used", false);
+
+    // If we have product_name from pending transaction, filter by it
+    if (productName) {
+      voucherQuery = voucherQuery.eq("product_name", productName);
+    }
+
+    const { data: voucher, error: voucherError } = await voucherQuery
       .limit(1)
       .single();
 
@@ -168,7 +179,8 @@ export async function POST(request: NextRequest) {
       } else {
         await supabase.from("transactions").insert({
           transaction_id: transactionId,
-          bill_link_id: bill_link_id, // ✅ Added
+          bill_link_id: bill_link_id,
+          name: pendingTx?.name || "Customer",
           email: sender_email,
           amount: amount,
           status: status,
@@ -181,7 +193,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Calculate actual price (use discounted if available)
+    const actualPrice = voucher.discounted_amount || voucher.amount;
+    const hasDiscount = voucher.discounted_amount !== null;
+
     console.log(`🎟️ Found voucher: ${voucher.code}`);
+    if (hasDiscount) {
+      console.log(
+        `💰 Regular: Rp ${voucher.amount.toLocaleString("id-ID")}, Discounted: Rp ${actualPrice.toLocaleString("id-ID")}`
+      );
+    }
 
     // Mark voucher as used
     const { error: updateError } = await supabase
@@ -241,9 +262,9 @@ export async function POST(request: NextRequest) {
       // Create new transaction if no pending found
       const { error: txError } = await supabase.from("transactions").insert({
         transaction_id: transactionId,
-        bill_link_id: bill_link_id, // ✅ Added
+        bill_link_id: bill_link_id,
+        name: pendingTx?.name || "Customer",
         email: sender_email,
-        voucher_code: voucher.code,
         amount: amount,
         status: status,
       });
@@ -281,12 +302,21 @@ export async function POST(request: NextRequest) {
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #4CAF50;">Payment Successful! 🎉</h2>
+            <p>Dear ${pendingTx?.name || "Customer"},</p>
             <p>Thank you for your payment. Here is your voucher code:</p>
             <div style="background-color: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
               <h1 style="color: #333; font-size: 32px; letter-spacing: 4px; margin: 0;">${voucher.code}</h1>
             </div>
+            <p><strong>Product:</strong> ${voucher.product_name}</p>
+            ${
+              hasDiscount
+                ? `
+              <p><strong>Original Price:</strong> <span style="text-decoration: line-through; color: #999;">Rp ${voucher.amount.toLocaleString("id-ID")}</span></p>
+              <p><strong>Your Price:</strong> <span style="color: #4CAF50; font-size: 18px;">Rp ${actualPrice.toLocaleString("id-ID")}</span> 🎉</p>
+            `
+                : `<p><strong>Amount:</strong> Rp ${amount.toLocaleString("id-ID")}</p>`
+            }
             <p><strong>Transaction ID:</strong> ${transactionId}</p>
-            <p><strong>Amount:</strong> Rp ${amount.toLocaleString("id-ID")}</p>
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
             <p style="color: #666; font-size: 12px;">If you have any questions, please contact our support team.</p>
           </div>

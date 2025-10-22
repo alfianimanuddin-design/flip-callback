@@ -3,9 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const billLinkId = searchParams.get("bill_link_id");
+    const tempId = searchParams.get("transaction_id");
 
-    if (!billLinkId) {
+    console.log(`📥 Redirect received - URL: ${request.url}`);
+    console.log(`📥 temp_id parameter: ${tempId}`);
+    console.log(`📥 All params:`, Object.fromEntries(searchParams.entries()));
+
+    if (!tempId) {
+      console.error(`❌ Missing temp_id parameter in request`);
       return new NextResponse(
         `
         <!DOCTYPE html>
@@ -13,7 +18,7 @@ export async function GET(request: NextRequest) {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Error - Missing Transaction ID</title>
+          <title>Error - Missing temp_id Parameter</title>
           <style>
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -50,8 +55,8 @@ export async function GET(request: NextRequest) {
         <body>
           <div class="container">
             <div class="error-icon">❌</div>
-            <h1>Missing Transaction ID</h1>
-            <p>Unable to process your payment confirmation. Please try again or contact support.</p>
+            <h1>Missing temp_id Parameter</h1>
+            <p>The temp_id parameter is required. Please ensure you're using the correct URL format: ?temp_id=YOUR_TEMP_ID</p>
           </div>
         </body>
         </html>
@@ -63,7 +68,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`🔍 Starting redirect for bill_link_id: ${billLinkId}`);
+    console.log(`🔍 Starting redirect for tempId: ${tempId}`);
 
     // Return loading page with client-side polling
     return new NextResponse(
@@ -187,25 +192,25 @@ export async function GET(request: NextRequest) {
         </div>
 
         <script>
-          const billLinkId = '${billLinkId}';
+          const tempId = '${tempId}';
           const maxAttempts = 15;
           let currentAttempt = 0;
 
           async function checkTransaction() {
             try {
               currentAttempt++;
-              
+
               // Update UI
-              document.getElementById('attempt').textContent = 
+              document.getElementById('attempt').textContent =
                 \`Attempt \${currentAttempt}/\${maxAttempts}...\`;
-              
+
               // Update progress bar
               const progress = (currentAttempt / maxAttempts) * 100;
               document.getElementById('progressFill').style.width = progress + '%';
 
               // Make API request
               const response = await fetch(
-                \`https://flip-callback.vercel.app/api/check-transaction?bill_link_id=\${billLinkId}\`
+                \`https://flip-callback.vercel.app/api/check-transaction?transaction_id=\${tempId}\`
               );
               
               const data = await response.json();
