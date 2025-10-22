@@ -3,21 +3,28 @@ import { supabase } from "@/lib/supabase";
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const billLinkId = searchParams.get("bill_link_id");
+    const searchParams = request.nextUrl.searchParams;
+    const transaction_id = searchParams.get("transaction_id");
+    const bill_link_id = searchParams.get("bill_link_id");
+    const status = searchParams.get("status");
 
-    if (!billLinkId) {
+    console.log("📥 Redirect received:", {
+      transaction_id,
+      bill_link_id,
+      status,
+    });
+
+    if (!transaction_id) {
+      console.error("❌ Missing transaction_id parameter");
       return NextResponse.redirect(
         new URL(
-          "https://functional-method-830499.framer.app/error?message=missing_bill_link_id",
+          "https://functional-method-830499.framer.app/error?message=missing_transaction_id",
           request.url
         )
       );
     }
 
-    console.log(`🔍 Looking up transaction for bill_link_id: ${billLinkId}`);
-
-    // Try to find the transaction in database
+    // Find the transaction and wait for webhook to process
     let transaction = null;
     let attempts = 0;
     const maxAttempts = 10;
@@ -26,12 +33,11 @@ export async function GET(request: NextRequest) {
       const { data } = await supabase
         .from("transactions")
         .select("*")
-        .eq("bill_link_id", parseInt(billLinkId))
-        .order("created_at", { ascending: false })
-        .limit(1)
+        .eq("temp_id", transaction_id)
         .single();
 
-      if (data && data.transaction_id) {
+      // Wait for webhook to add transaction_id (means payment processed)
+      if (data && data.transaction_id && data.voucher_code) {
         transaction = data;
         break;
       }
@@ -44,25 +50,27 @@ export async function GET(request: NextRequest) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    if (!transaction || !transaction.transaction_id) {
-      console.log(`⚠️ Transaction not found after ${maxAttempts} attempts`);
+    if (!transaction) {
+      console.error("❌ Transaction not found after waiting");
       return NextResponse.redirect(
         new URL(
-          `https://functional-method-830499.framer.app/processing?bill_link_id=${billLinkId}`,
+          `https://functional-method-830499.framer.app/processing?transaction_id=${transaction_id}`,
           request.url
         )
       );
     }
 
-    console.log(`✅ Found transaction: ${transaction.transaction_id}`);
+    console.log("✅ Transaction found:", transaction.id);
 
-    // Redirect to Framer success page with full transaction ID
-    return NextResponse.redirect(
-      new URL(
-        `https://functional-method-830499.framer.app/success?bill_link=${transaction.transaction_id}`,
-        request.url
-      )
+    // Redirect to success page
+    const successUrl = new URL(
+      "https://functional-method-830499.framer.app/success",
+      request.url
     );
+    successUrl.searchParams.set("bill_link", transaction.transaction_id);
+    successUrl.searchParams.set("voucher_code", transaction.voucher_code);
+
+    return NextResponse.redirect(successUrl);
   } catch (error) {
     console.error("❌ Redirect error:", error);
     return NextResponse.redirect(
