@@ -205,11 +205,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark voucher as used
+    const now = new Date();
+    const expiryDate = new Date(now);
+    expiryDate.setDate(expiryDate.getDate() + 30); // Add 30 days
+
     const { error: updateError } = await supabase
       .from("vouchers")
       .update({
         used: true,
-        used_at: new Date().toISOString(),
+        used_at: now.toISOString(),
+        expiry_date: expiryDate.toISOString(), // ← ADD THIS LINE
         used_by: sender_email,
       })
       .eq("code", voucher.code)
