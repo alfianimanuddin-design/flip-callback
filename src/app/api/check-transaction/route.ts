@@ -4,11 +4,11 @@ import { supabase } from "@/lib/supabase";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const tempId = searchParams.get("transaction_id");
+    const billLinkId = searchParams.get("bill_link_id");
 
-    if (!tempId) {
+    if (!billLinkId) {
       return NextResponse.json(
-        { success: false, message: "temp_id required" },
+        { success: false, message: "bill_link_id required" },
         {
           status: 400,
           headers: {
@@ -20,15 +20,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`🔍 Checking transaction for temp_id: ${tempId}`);
-
-    // Handle both string and numeric temp_id formats
-    const tempIdValue = isNaN(parseInt(tempId)) ? tempId : parseInt(tempId);
+    console.log(`🔍 Checking transaction for bill_link_id: ${billLinkId}`);
 
     const { data: transaction } = await supabase
       .from("transactions")
       .select("*")
-      .eq("temp_id", tempIdValue)
+      .eq("bill_link_id", parseInt(billLinkId))
       .order("created_at", { ascending: false })
       .limit(1)
       .single();
