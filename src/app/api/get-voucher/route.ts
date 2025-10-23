@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+// Initialize Supabase client with service role key for full access
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,9 +31,16 @@ export async function GET(request: NextRequest) {
     // Query the transaction by transaction_id
     const { data: transaction, error } = await supabase
       .from("transactions")
-      .select("*")
+      .select(
+        "id, transaction_id, voucher_code, email, amount, discounted_amount, product_name, status, used_at, expiry_date, bill_link_id, created_at"
+      )
       .eq("transaction_id", billLink)
       .single();
+
+    console.log(
+      `🔍 Raw transaction data:`,
+      JSON.stringify(transaction, null, 2)
+    );
 
     if (error || !transaction) {
       console.log(`⏳ Transaction not found yet: ${billLink}`);
@@ -47,27 +60,26 @@ export async function GET(request: NextRequest) {
     console.log(
       `✅ Found transaction with voucher: ${transaction.voucher_code}`
     );
+    console.log(`📅 Transaction expiry_date: ${transaction.expiry_date}`);
+    console.log(`📅 Transaction used_at: ${transaction.used_at}`);
 
-    // Get voucher details including pricing
-    let voucherDetails = null;
-    if (transaction.voucher_code) {
-      const { data: voucher } = await supabase
-        .from("vouchers")
-        .select("amount, discounted_amount, product_name, expiry_date")
-        .eq("code", transaction.voucher_code)
-        .single();
+    // Get voucher details from transaction (since vouchers are deleted after use)
+    const voucherDetails = transaction.voucher_code
+      ? {
+          regular_price: transaction.amount,
+          discounted_price: transaction.discounted_amount,
+          final_price: transaction.discounted_amount || transaction.amount,
+          has_discount: transaction.discounted_amount !== null,
+          product_name: transaction.product_name,
+          expiry_date: transaction.expiry_date,
+          used_at: transaction.used_at,
+        }
+      : null;
 
-      if (voucher) {
-        voucherDetails = {
-          regular_price: voucher.amount,
-          discounted_price: voucher.discounted_amount,
-          final_price: voucher.discounted_amount || voucher.amount,
-          has_discount: voucher.discounted_amount !== null,
-          product_name: voucher.product_name,
-          expiry_date: voucher.expiry_date,
-        };
-      }
-    }
+    console.log(
+      `📦 Voucher details being returned:`,
+      JSON.stringify(voucherDetails, null, 2)
+    );
 
     return NextResponse.json(
       {
