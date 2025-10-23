@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     if (transaction.voucher_code) {
       const { data: voucher } = await supabase
         .from("vouchers")
-        .select("amount, discounted_amount, product_name")
+        .select("amount, discounted_amount, product_name, expiry_date")
         .eq("code", transaction.voucher_code)
         .single();
 
@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
           final_price: voucher.discounted_amount || voucher.amount,
           has_discount: voucher.discounted_amount !== null,
           product_name: voucher.product_name,
+          expiry_date: voucher.expiry_date,
         };
       }
     }
