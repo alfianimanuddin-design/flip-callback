@@ -28,11 +28,11 @@ export async function GET(request: NextRequest) {
 
     console.log(`🔍 Looking up voucher for transaction: ${billLink}`);
 
-    // Query the transaction by transaction_id and join with vouchers table
+    // Query the transaction by transaction_id
     const { data: transaction, error } = await supabase
       .from("transactions")
       .select(
-        "id, transaction_id, voucher_code, email, amount, product_name, status, used_at, expiry_date, bill_link_id, created_at, vouchers(amount, discounted_amount)"
+        "id, transaction_id, voucher_code, email, amount, product_name, status, used_at, expiry_date, bill_link_id, created_at"
       )
       .eq("transaction_id", billLink)
       .single();
@@ -63,18 +63,27 @@ export async function GET(request: NextRequest) {
     console.log(`📅 Transaction expiry_date: ${transaction.expiry_date}`);
     console.log(`📅 Transaction used_at: ${transaction.used_at}`);
 
-    // Get voucher details from joined vouchers table
-    const voucher = transaction.vouchers as any;
-    const voucherDetails =
-      transaction.voucher_code && voucher
-        ? {
-            regular_price: voucher.amount,
-            discounted_price: voucher.discounted_amount,
-            product_name: transaction.product_name,
-            expiry_date: transaction.expiry_date,
-            used_at: transaction.used_at,
-          }
-        : null;
+    // Get voucher details from vouchers table if voucher_code exists
+    let voucherDetails = null;
+    if (transaction.voucher_code) {
+      const { data: voucher } = await supabase
+        .from("vouchers")
+        .select("amount, discounted_amount")
+        .eq("code", transaction.voucher_code)
+        .single();
+
+      if (voucher) {
+        voucherDetails = {
+          regular_price: voucher.amount,
+          discounted_price: voucher.discounted_amount,
+          final_price: voucher.discounted_amount || voucher.amount,
+          has_discount: voucher.discounted_amount !== null,
+          product_name: transaction.product_name,
+          expiry_date: transaction.expiry_date,
+          used_at: transaction.used_at,
+        };
+      }
+    }
 
     console.log(
       `📦 Voucher details being returned:`,
