@@ -1,25 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-// This endpoint should be called periodically (e.g., via a cron job)
-// to clean up transactions that have been pending for too long
+// Simplified cleanup - just releases vouchers from old PENDING transactions
 export async function POST(request: NextRequest) {
   try {
-    // Optional: Add a secret key for security
-    const authHeader = request.headers.get("authorization");
-    const expectedSecret = process.env.CLEANUP_SECRET;
-
-    if (expectedSecret && authHeader !== `Bearer ${expectedSecret}`) {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
     console.log("🧹 Starting cleanup of expired transactions...");
 
-    // Find PENDING transactions older than 5 minutes
-    const expiryTime = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    // Find PENDING transactions older than X minutes (configurable via env var)
+    const timeoutMinutes = parseInt(process.env.CLEANUP_TIMEOUT_MINUTES || "5");
+
+    // Calculate expiry time in milliseconds, then convert to ISO string (UTC)
+    const expiryDate = new Date(Date.now() - timeoutMinutes * 60 * 1000);
+    const expiryTime = expiryDate.toISOString();
+
+    console.log(`⏰ Current time: ${new Date().toISOString()}`);
+    console.log(
+      `⏰ Looking for transactions older than ${timeoutMinutes} minutes (before ${expiryTime})...`
+    );
 
     const { data: expiredTransactions, error: fetchError } = await supabase
       .from("transactions")
@@ -32,6 +29,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: fetchError.message },
         { status: 500 }
+      );
+    }
+
+    console.log(
+      `📊 Query returned ${expiredTransactions?.length || 0} transactions`
+    );
+    if (expiredTransactions && expiredTransactions.length > 0) {
+      console.log(
+        `📋 First transaction: ${JSON.stringify(expiredTransactions[0], null, 2)}`
       );
     }
 
@@ -48,40 +54,24 @@ export async function POST(request: NextRequest) {
 
     let releasedCount = 0;
     const errors = [];
+    const released = [];
 
     // Process each expired transaction
     for (const tx of expiredTransactions) {
-      console.log(
-        `Processing expired transaction: ${tx.id} (voucher: ${tx.voucher_code})`
-      );
+      if (!tx.voucher_code) {
+        console.log(`⏭️ Skipping transaction ${tx.id} - no voucher assigned`);
+        continue;
+      }
+
+      console.log(`Processing: ${tx.id} (voucher: ${tx.voucher_code})`);
 
       try {
-        // Update transaction status to EXPIRED
-        const { error: updateError } = await supabase
-          .from("transactions")
-          .update({
-            status: "EXPIRED",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", tx.id);
-
-        if (updateError) {
-          console.error(
-            `❌ Failed to update transaction ${tx.id}:`,
-            updateError
-          );
-          errors.push({
-            transaction_id: tx.id,
-            error: "Failed to update status",
-          });
-          continue;
-        }
-
-        // Release the voucher
+        // Just release the voucher - don't update transaction
         const { error: voucherError } = await supabase
           .from("vouchers")
           .update({ used: false })
-          .eq("code", tx.voucher_code);
+          .eq("code", tx.voucher_code)
+          .eq("used", true); // Only update if it's currently used
 
         if (voucherError) {
           console.error(
@@ -91,13 +81,19 @@ export async function POST(request: NextRequest) {
           errors.push({
             transaction_id: tx.id,
             voucher_code: tx.voucher_code,
-            error: "Failed to release voucher",
+            error: voucherError.message,
           });
-          continue;
+        } else {
+          console.log(`✅ Released voucher: ${tx.voucher_code}`);
+          releasedCount++;
+          released.push({
+            transaction_id: tx.id,
+            voucher_code: tx.voucher_code,
+            age_minutes: Math.round(
+              (Date.now() - new Date(tx.created_at).getTime()) / 60000
+            ),
+          });
         }
-
-        console.log(`🔓 Released voucher: ${tx.voucher_code}`);
-        releasedCount++;
       } catch (err) {
         console.error(`❌ Error processing transaction ${tx.id}:`, err);
         errors.push({
@@ -113,9 +109,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Cleaned up ${releasedCount} expired transactions`,
+      message: `Released ${releasedCount} vouchers from ${expiredTransactions.length} expired transactions`,
       total_found: expiredTransactions.length,
       released: releasedCount,
+      released_vouchers: released,
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
@@ -133,10 +130,12 @@ export async function POST(request: NextRequest) {
 
 // Allow GET requests to check endpoint status
 export async function GET() {
+  const timeoutMinutes = parseInt(process.env.CLEANUP_TIMEOUT_MINUTES || "5");
   return NextResponse.json({
     message: "Cleanup endpoint is active",
     description:
-      "POST to this endpoint to trigger cleanup of expired transactions",
-    note: "Transactions pending for more than 5 minutes will be expired and their vouchers released",
+      "POST to this endpoint to release vouchers from expired transactions",
+    timeout_minutes: timeoutMinutes,
+    note: `Vouchers from PENDING transactions older than ${timeoutMinutes} minutes will be released`,
   });
 }
