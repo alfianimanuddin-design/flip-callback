@@ -36,7 +36,9 @@ export default function VoucherSelection() {
   const fetchVouchers = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/vouchers");
+      const response = await fetch(
+        "https://flip-callback.vercel.app/api/vouchers"
+      );
       const data = await response.json();
 
       if (data.success) {
@@ -97,21 +99,24 @@ export default function VoucherSelection() {
 
     try {
       // Create payment
-      const response = await fetch("/api/create-payment", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: selectedVoucher.amount,
-          discounted_amount: selectedVoucher.discounted_amount,
-          email: email,
-          name: name,
-          title: `Voucher - ${selectedVoucher.product_name}`,
-          product_name: selectedVoucher.product_name,
-          sender_bank_type: "qris",
-        }),
-      });
+      const response = await fetch(
+        "https://flip-callback.vercel.app/api/create-payment",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount: selectedVoucher.amount,
+            discounted_amount: selectedVoucher.discounted_amount,
+            email: email,
+            name: name,
+            title: `Voucher - ${selectedVoucher.product_name}`,
+            product_name: selectedVoucher.product_name,
+            sender_bank_type: "qris",
+          }),
+        }
+      );
 
       const data = await response.json();
 
