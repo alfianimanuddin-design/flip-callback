@@ -9,6 +9,9 @@ const corsHeaders = {
   "Access-Control-Max-Age": "86400", // 24 hours
 };
 
+// Minimum amount for QRIS payments (typically 10,000 IDR for Flip)
+const MIN_QRIS_AMOUNT = 10000;
+
 export async function POST(request: NextRequest) {
   try {
     const {
@@ -35,6 +38,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Use discounted amount if available, otherwise use regular amount
+    const actualAmount = discounted_amount || amount;
+    const hasDiscount =
+      discounted_amount !== null && discounted_amount !== undefined;
+
+    // Validate minimum amount BEFORE reserving voucher
+    if (actualAmount < MIN_QRIS_AMOUNT) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Minimum amount for QRIS payment is Rp ${MIN_QRIS_AMOUNT.toLocaleString("id-ID")}. Current amount: Rp ${actualAmount.toLocaleString("id-ID")}`,
+        },
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
+      );
+    }
+
     let tempId = "";
     let voucherId = null;
 
@@ -49,11 +71,6 @@ export async function POST(request: NextRequest) {
         }
       );
     }
-
-    // Use discounted amount if available, otherwise use regular amount
-    const actualAmount = discounted_amount || amount;
-    const hasDiscount =
-      discounted_amount !== null && discounted_amount !== undefined;
 
     console.log(
       `🔄 Creating payment for ${name} (${email}), ${hasDiscount ? `original: ${amount}, discounted: ${actualAmount}` : `amount: ${actualAmount}`}`
@@ -209,6 +226,36 @@ export async function POST(request: NextRequest) {
         },
         {
           status: 500,
+          headers: corsHeaders,
+        }
+      );
+    }
+
+    // Check for validation errors from Flip (e.g., minimum amount)
+    if (flipData.code === "VALIDATION_ERROR" && flipData.errors) {
+      console.error("❌ Flip validation error:", flipData.errors);
+
+      // Release voucher on validation failure
+      if (voucherId) {
+        await supabase
+          .from("vouchers")
+          .update({ used: false })
+          .eq("id", voucherId);
+        console.log("🔓 Voucher released due to validation error");
+      }
+
+      const errorMessage = flipData.errors
+        .map((err: any) => err.message)
+        .join(", ");
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: errorMessage || "Payment validation failed",
+          errors: flipData.errors,
+        },
+        {
+          status: 400,
           headers: corsHeaders,
         }
       );
