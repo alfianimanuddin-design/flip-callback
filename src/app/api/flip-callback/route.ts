@@ -560,57 +560,10 @@ async function sendVoucherEmail(
   }
 }
 
-// Add this GET endpoint to your route file to test email directly
-// Make sure you have these imports at the top:
-// import { NextResponse } from "next/server";
-// import { Resend } from "resend";
-// const resend = new Resend(process.env.RESEND_API_KEY);
-
+// Test endpoint
 export async function GET() {
-  try {
-    console.log("🧪 Testing Resend email...");
-
-    // Check if API key exists
-    if (!process.env.RESEND_API_KEY) {
-      console.error("❌ RESEND_API_KEY not found!");
-      return NextResponse.json({
-        success: false,
-        error: "RESEND_API_KEY not configured",
-      });
-    }
-
-    console.log(
-      "✅ RESEND_API_KEY found, length:",
-      process.env.RESEND_API_KEY.length
-    );
-
-    // Try to send a test email
-    const result = await resend.emails.send({
-      from: "noreply@jajan.flip.id",
-      to: "alfian.imanuddin@flip.id", // Your email
-      subject: "Test Email from Next.js",
-      html: "<p>This is a test email from your application!</p>",
-    });
-
-    console.log("✅ Email sent successfully!");
-    console.log("Result:", result);
-
-    return NextResponse.json({
-      success: true,
-      message: "Test email sent successfully",
-      emailId: result.data?.id,
-      result: result,
-    });
-  } catch (error: any) {
-    console.error("❌ Test email failed:", error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message,
-        details: error,
-      },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({
+    message: "Flip callback endpoint is running ✅",
+    timestamp: new Date().toISOString(),
+  });
 }
