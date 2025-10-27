@@ -533,7 +533,7 @@ async function sendVoucherEmail(
     }
   </style>
 </head>
-<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:'Proxima Nova',Arial,sans-serif">
+<body style="margin:0;padding:0;background-color:#fee9b4;font-family:'Proxima Nova',Arial,sans-serif">
   <table width="100%" cellspacing="0" cellpadding="0" style="background-color:#fee9b4">
     <tr><td style="padding:20px 10px">
       <table class="email-container" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;margin:0 auto;border-radius:16px;overflow:hidden">
@@ -555,7 +555,7 @@ async function sendVoucherEmail(
             </td></tr>
           
             <!-- Voucher Card -->
-            <tr><td style="padding:16px 20px 32px;border-radius:0 0 24px 24px">
+            <tr><td style="padding:16px 20px 32px;background:#ffffff;border-radius:0 0 24px 24px">
               
               <!-- Success Icon -->
               <table width="100%" cellspacing="0" cellpadding="0">
