@@ -144,6 +144,7 @@ export async function POST(request: NextRequest) {
             }
 
             // Send email
+            console.log("🚀 Calling sendVoucherEmail function...");
             await sendVoucherEmail(
               sender_email,
               existingTx.name || "Customer",
@@ -151,6 +152,7 @@ export async function POST(request: NextRequest) {
               transactionId,
               amount
             );
+            console.log("✅ Returned from sendVoucherEmail function");
 
             return NextResponse.json({
               success: true,
@@ -452,6 +454,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Send email
+    console.log("🚀 Calling sendVoucherEmail function...");
     await sendVoucherEmail(
       sender_email,
       pendingTx?.name || "Customer",
@@ -459,6 +462,7 @@ export async function POST(request: NextRequest) {
       transactionId,
       amount
     );
+    console.log("✅ Returned from sendVoucherEmail function");
 
     return NextResponse.json({
       success: true,
@@ -490,11 +494,25 @@ async function sendVoucherEmail(
   amount: number
 ) {
   try {
+    console.log("📧 ========== EMAIL SEND ATTEMPT ==========");
+    console.log("📧 To:", email);
+    console.log("📧 Name:", name);
+    console.log("📧 Voucher Code:", voucher.code);
+    console.log("📧 Transaction ID:", transactionId);
+
+    // Verify environment
+    if (!process.env.RESEND_API_KEY) {
+      console.error("❌ RESEND_API_KEY is not set!");
+      return;
+    }
+    console.log("✅ RESEND_API_KEY is set");
+
     const hasDiscount = voucher.discounted_amount !== null;
     const actualPrice = voucher.discounted_amount || voucher.amount;
 
+    console.log("📤 Calling Resend API...");
     const emailResult = await resend.emails.send({
-      from: "admin@jajan.flip.id",
+      from: "noreply@jajan.flip.id",
       to: email,
       subject: "Your Voucher Code - Payment Successful!",
       html: `
@@ -521,16 +539,78 @@ async function sendVoucherEmail(
       `,
     });
 
-    console.log(`📧 Email sent successfully:`, emailResult);
-  } catch (emailError) {
-    console.error("📧 Error sending email:", emailError);
+    console.log("✅ ========== EMAIL SENT SUCCESSFULLY ==========");
+    console.log("📧 Email ID:", emailResult.data?.id);
+    console.log("📧 Full Response:", JSON.stringify(emailResult, null, 2));
+  } catch (emailError: any) {
+    console.error("❌ ========== EMAIL ERROR ==========");
+    console.error("❌ Error Type:", emailError.name);
+    console.error("❌ Error Message:", emailError.message);
+    console.error("❌ Full Error:", JSON.stringify(emailError, null, 2));
+
+    if (emailError.response) {
+      console.error("❌ Response Status:", emailError.response.status);
+      console.error(
+        "❌ Response Data:",
+        JSON.stringify(emailError.response.data, null, 2)
+      );
+    }
+
+    // Don't throw - we don't want to fail the transaction if email fails
   }
 }
 
-// Test endpoint
+// Add this GET endpoint to your route file to test email directly
+// Make sure you have these imports at the top:
+// import { NextResponse } from "next/server";
+// import { Resend } from "resend";
+// const resend = new Resend(process.env.RESEND_API_KEY);
+
 export async function GET() {
-  return NextResponse.json({
-    message: "Flip callback endpoint is running ✅",
-    timestamp: new Date().toISOString(),
-  });
+  try {
+    console.log("🧪 Testing Resend email...");
+
+    // Check if API key exists
+    if (!process.env.RESEND_API_KEY) {
+      console.error("❌ RESEND_API_KEY not found!");
+      return NextResponse.json({
+        success: false,
+        error: "RESEND_API_KEY not configured",
+      });
+    }
+
+    console.log(
+      "✅ RESEND_API_KEY found, length:",
+      process.env.RESEND_API_KEY.length
+    );
+
+    // Try to send a test email
+    const result = await resend.emails.send({
+      from: "noreply@jajan.flip.id",
+      to: "alfian.imanuddin@flip.id", // Your email
+      subject: "Test Email from Next.js",
+      html: "<p>This is a test email from your application!</p>",
+    });
+
+    console.log("✅ Email sent successfully!");
+    console.log("Result:", result);
+
+    return NextResponse.json({
+      success: true,
+      message: "Test email sent successfully",
+      emailId: result.data?.id,
+      result: result,
+    });
+  } catch (error: any) {
+    console.error("❌ Test email failed:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message,
+        details: error,
+      },
+      { status: 500 }
+    );
+  }
 }
