@@ -172,14 +172,17 @@ export async function POST(request: NextRequest) {
 
     console.log("📤 Step 3 - Creating payment:", formData.toString());
 
-    const flipResponse = await fetch("https://bigflip.id/api/v2/pwf/bill", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: authHeader,
-      },
-      body: formData.toString(),
-    });
+    const flipResponse = await fetch(
+      "https://bigflip.id/big_sandbox_api/v2/pwf/bill",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: authHeader,
+        },
+        body: formData.toString(),
+      }
+    );
 
     const responseText = await flipResponse.text();
     console.log("📥 Flip API raw response:", responseText);
