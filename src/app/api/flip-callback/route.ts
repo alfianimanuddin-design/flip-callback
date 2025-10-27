@@ -84,6 +84,8 @@ export async function POST(request: NextRequest) {
       if (existingTx.status === "PENDING" && status === "SUCCESSFUL") {
         console.log("🔄 Updating PENDING transaction to SUCCESSFUL");
 
+        let voucherToSend = null;
+
         // Get a voucher if not already assigned
         if (!existingTx.voucher_code) {
           const productName = existingTx.product_name;
@@ -143,25 +145,24 @@ export async function POST(request: NextRequest) {
               );
             }
 
-            // Send email
-            console.log("🚀 Calling sendVoucherEmail function...");
-            await sendVoucherEmail(
-              sender_email,
-              existingTx.name || "Customer",
-              voucher,
-              transactionId,
-              amount
-            );
-            console.log("✅ Returned from sendVoucherEmail function");
-
-            return NextResponse.json({
-              success: true,
-              message: "Transaction updated to SUCCESSFUL",
-              voucher_code: voucher.code,
-              status: "SUCCESSFUL",
-            });
+            voucherToSend = voucher;
           } else {
             console.log("⚠️ No voucher available");
+          }
+        } else {
+          // Voucher already exists, fetch it for email
+          console.log(
+            `🎟️ Transaction already has voucher: ${existingTx.voucher_code}`
+          );
+
+          const { data: existingVoucher } = await supabase
+            .from("vouchers")
+            .select("code, product_name, amount, discounted_amount")
+            .eq("code", existingTx.voucher_code)
+            .single();
+
+          if (existingVoucher) {
+            voucherToSend = existingVoucher;
           }
         }
 
@@ -180,10 +181,25 @@ export async function POST(request: NextRequest) {
           console.log(`✅ Transaction ${existingTx.id} updated to SUCCESSFUL`);
         }
 
+        // Send email if we have a voucher
+        if (voucherToSend) {
+          console.log("🚀 Calling sendVoucherEmail function...");
+          await sendVoucherEmail(
+            sender_email,
+            existingTx.name || "Customer",
+            voucherToSend,
+            transactionId,
+            amount
+          );
+          console.log("✅ Returned from sendVoucherEmail function");
+        } else {
+          console.log("⚠️ No voucher to send email for");
+        }
+
         return NextResponse.json({
           success: true,
           message: "Transaction updated to SUCCESSFUL",
-          voucher_code: existingTx.voucher_code,
+          voucher_code: existingTx.voucher_code || voucherToSend?.code,
           status: "SUCCESSFUL",
         });
       }
