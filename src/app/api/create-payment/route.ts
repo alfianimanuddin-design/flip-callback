@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+// Define CORS headers at the top for reuse
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Max-Age": "86400", // 24 hours
+};
+
 export async function POST(request: NextRequest) {
   try {
     const {
@@ -22,11 +30,7 @@ export async function POST(request: NextRequest) {
         },
         {
           status: 400,
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-          },
+          headers: corsHeaders,
         }
       );
     }
@@ -41,11 +45,7 @@ export async function POST(request: NextRequest) {
         { success: false, message: "API key not configured" },
         {
           status: 500,
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-          },
+          headers: corsHeaders,
         }
       );
     }
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       .from("vouchers")
       .select("*")
       .eq("product_name", product_name)
-      .eq("used", false) // ← Changed from status = 'available'
+      .eq("used", false)
       .limit(1)
       .single();
 
@@ -81,11 +81,7 @@ export async function POST(request: NextRequest) {
         },
         {
           status: 400,
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-          },
+          headers: corsHeaders,
         }
       );
     }
@@ -98,7 +94,7 @@ export async function POST(request: NextRequest) {
     // Reserve the voucher immediately by marking it as used
     const { error: reserveError } = await supabase
       .from("vouchers")
-      .update({ used: true }) // ← Changed from status = 'reserved'
+      .update({ used: true })
       .eq("id", availableVoucher.id);
 
     if (reserveError) {
@@ -110,11 +106,7 @@ export async function POST(request: NextRequest) {
         },
         {
           status: 500,
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-          },
+          headers: corsHeaders,
         }
       );
     }
@@ -141,7 +133,7 @@ export async function POST(request: NextRequest) {
       // Release voucher if transaction creation fails
       await supabase
         .from("vouchers")
-        .update({ used: false }) // ← Changed from status = 'available'
+        .update({ used: false })
         .eq("id", voucherId);
 
       return NextResponse.json(
@@ -151,11 +143,7 @@ export async function POST(request: NextRequest) {
         },
         {
           status: 500,
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-          },
+          headers: corsHeaders,
         }
       );
     }
@@ -184,7 +172,7 @@ export async function POST(request: NextRequest) {
 
     console.log("📤 Step 3 - Creating payment:", formData.toString());
 
-    const flipResponse = await fetch("https://bigflip.id/v2/pwf/bill", {
+    const flipResponse = await fetch("https://bigflip.id/api/v2/pwf/bill", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -206,7 +194,7 @@ export async function POST(request: NextRequest) {
       if (voucherId) {
         await supabase
           .from("vouchers")
-          .update({ used: false }) // ← Changed
+          .update({ used: false })
           .eq("id", voucherId);
       }
 
@@ -218,11 +206,7 @@ export async function POST(request: NextRequest) {
         },
         {
           status: 500,
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-          },
+          headers: corsHeaders,
         }
       );
     }
@@ -237,7 +221,7 @@ export async function POST(request: NextRequest) {
       if (voucherId) {
         await supabase
           .from("vouchers")
-          .update({ used: false }) // ← Changed
+          .update({ used: false })
           .eq("id", voucherId);
       }
 
@@ -250,11 +234,7 @@ export async function POST(request: NextRequest) {
         },
         {
           status: 500,
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-          },
+          headers: corsHeaders,
         }
       );
     }
@@ -292,11 +272,7 @@ export async function POST(request: NextRequest) {
         voucher_code: availableVoucher.code,
       },
       {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
-        },
+        headers: corsHeaders,
       }
     );
   } catch (error) {
@@ -309,11 +285,7 @@ export async function POST(request: NextRequest) {
       },
       {
         status: 500,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
-        },
+        headers: corsHeaders,
       }
     );
   }
@@ -322,11 +294,7 @@ export async function POST(request: NextRequest) {
 // Handle OPTIONS request for CORS preflight
 export async function OPTIONS() {
   return new NextResponse(null, {
-    status: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
+    status: 204,
+    headers: corsHeaders,
   });
 }
