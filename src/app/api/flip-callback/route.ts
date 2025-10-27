@@ -494,7 +494,7 @@ async function sendVoucherEmail(
     const actualPrice = voucher.discounted_amount || voucher.amount;
 
     const emailResult = await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: "admin@jajan.flip.id",
       to: email,
       subject: "Your Voucher Code - Payment Successful!",
       html: `
