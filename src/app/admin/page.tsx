@@ -1,42 +1,111 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 import AddVoucherForm from "./add-voucher/page";
 
-async function getTransactions() {
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching transactions:", error);
-    return [];
-  }
-  return data;
+interface Voucher {
+  id: string;
+  code: string;
+  used: boolean;
+  created_at: string;
 }
 
-async function getVoucherStats() {
-  const { data: all } = await supabase.from("vouchers").select("*");
-  const { data: used } = await supabase
-    .from("vouchers")
-    .select("*")
-    .eq("used", true);
-  const { data: available } = await supabase
-    .from("vouchers")
-    .select("*")
-    .eq("used", false)
-    .order("created_at", { ascending: false });
+interface VoucherData {
+  total: number;
+  used: number;
+  available: number;
+  availableVouchers: Voucher[];
+}
 
-  return {
-    total: all?.length || 0,
-    used: used?.length || 0,
-    available: available?.length || 0,
-    availableVouchers: available || [],
+export default function AdminDashboard() {
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [voucherData, setVoucherData] = useState<VoucherData>({
+    total: 0,
+    used: 0,
+    available: 0,
+    availableVouchers: [],
+  });
+  const [loading, setLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState("");
+  const router = useRouter();
+
+  useEffect(() => {
+    checkAuth();
+    fetchData();
+  }, []);
+
+  const checkAuth = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      router.push("/admin/login");
+      return;
+    }
+
+    setUserEmail(session.user.email || "");
   };
-}
 
-export default async function AdminDashboard() {
-  const transactions = await getTransactions();
-  const voucherData = await getVoucherStats();
+  const fetchData = async () => {
+    try {
+      // Fetch transactions
+      const { data: txData, error: txError } = await supabase
+        .from("transactions")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (txError) throw txError;
+      setTransactions(txData || []);
+
+      // Fetch voucher stats
+      const { data: all } = await supabase.from("vouchers").select("*");
+      const { data: used } = await supabase
+        .from("vouchers")
+        .select("*")
+        .eq("used", true);
+      const { data: available } = await supabase
+        .from("vouchers")
+        .select("*")
+        .eq("used", false)
+        .order("created_at", { ascending: false });
+
+      setVoucherData({
+        total: all?.length || 0,
+        used: used?.length || 0,
+        available: available?.length || 0,
+        availableVouchers: available || [],
+      });
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/admin/login");
+    router.refresh();
+  };
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div style={{ color: "white", fontSize: "24px" }}>Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -48,20 +117,66 @@ export default async function AdminDashboard() {
     >
       <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
         {/* Header */}
-        <div style={{ marginBottom: "40px" }}>
-          <h1
+        <div
+          style={{
+            marginBottom: "40px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "16px",
+          }}
+        >
+          <div>
+            <h1
+              style={{
+                color: "white",
+                fontSize: "36px",
+                fontWeight: "bold",
+                marginBottom: "8px",
+              }}
+            >
+              Admin Dashboard
+            </h1>
+            <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "16px" }}>
+              Monitor your transactions and voucher inventory
+            </p>
+            {userEmail && (
+              <p
+                style={{
+                  color: "rgba(255,255,255,0.9)",
+                  fontSize: "14px",
+                  marginTop: "8px",
+                }}
+              >
+                Logged in as: {userEmail}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={handleLogout}
             style={{
+              padding: "12px 24px",
+              backgroundColor: "rgba(255,255,255,0.2)",
               color: "white",
-              fontSize: "36px",
-              fontWeight: "bold",
-              marginBottom: "8px",
+              border: "2px solid white",
+              borderRadius: "8px",
+              fontSize: "16px",
+              fontWeight: "600",
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "white";
+              e.currentTarget.style.color = "#667eea";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.2)";
+              e.currentTarget.style.color = "white";
             }}
           >
-            Admin Dashboard
-          </h1>
-          <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "16px" }}>
-            Monitor your transactions and voucher inventory
-          </p>
+            🚪 Logout
+          </button>
         </div>
 
         {/* Stats Cards */}
@@ -94,7 +209,7 @@ export default async function AdminDashboard() {
         </div>
 
         {/* Add Voucher Form */}
-        <AddVoucherForm />
+        <AddVoucherForm onVoucherAdded={fetchData} />
 
         {/* Available Vouchers Section */}
         <div
