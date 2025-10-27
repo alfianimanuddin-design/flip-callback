@@ -157,7 +157,9 @@ export async function POST(request: NextRequest) {
 
           const { data: existingVoucher } = await supabase
             .from("vouchers")
-            .select("code, product_name, amount, discounted_amount")
+            .select(
+              "code, product_name, amount, discounted_amount, used_at, expiry_date"
+            )
             .eq("code", existingTx.voucher_code)
             .single();
 
@@ -255,70 +257,25 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .single();
 
-    console.log(
-      pendingTx
-        ? `✅ Found pending transaction with temp_id: ${pendingTx.temp_id}`
-        : "⚠️ No pending transaction found - will create new one"
-    );
-
-    // Only assign voucher for successful payments
-    if (status !== "SUCCESSFUL") {
+    if (pendingTx) {
       console.log(
-        `⏳ Transaction status: ${status} - not assigning voucher yet`
+        `✅ Found pending transaction with temp_id: ${pendingTx.temp_id}`
       );
-
-      if (pendingTx) {
-        // Update existing pending transaction with Flip's transaction ID
-        const { error: updateError } = await supabase
-          .from("transactions")
-          .update({
-            transaction_id: transactionId,
-            bill_link_id: bill_link_id,
-            status: status,
-          })
-          .eq("id", pendingTx.id);
-
-        if (updateError) {
-          console.error("❌ Error updating pending transaction:", updateError);
-        } else {
-          console.log("✅ Updated transaction with status:", status);
-        }
-      } else {
-        // Create new transaction if no pending found
-        const { error: txError } = await supabase.from("transactions").insert({
-          transaction_id: transactionId,
-          bill_link_id: bill_link_id,
-          name: "Customer",
-          email: sender_email,
-          amount: amount,
-          status: status,
-        });
-
-        if (txError) {
-          console.error("❌ Error storing pending transaction:", txError);
-        } else {
-          console.log("✅ Created new transaction with status:", status);
-        }
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: `Transaction recorded with status: ${status}`,
-      });
+    } else {
+      console.log(
+        `⚠️ No pending transaction found for ${sender_email} with amount ${amount}`
+      );
     }
 
-    // Get an unused voucher matching the product
+    // Get product name for voucher matching
     const productName = pendingTx?.product_name;
-    console.log(
-      `🔍 Looking for available voucher for product: ${productName}...`
-    );
 
+    // Get an unused voucher (try to match product if we have it)
     let voucherQuery = supabase
       .from("vouchers")
       .select("code, product_name, amount, discounted_amount")
       .eq("used", false);
 
-    // If we have product_name from pending transaction, filter by it
     if (productName) {
       voucherQuery = voucherQuery.eq("product_name", productName);
     }
@@ -327,7 +284,7 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .single();
 
-    if (voucherError || !voucher) {
+    if (!voucher || voucherError) {
       console.error("❌ No available vouchers:", voucherError);
 
       if (pendingTx) {
@@ -469,12 +426,19 @@ export async function POST(request: NextRequest) {
       `✅ SUCCESS: Assigned voucher ${voucher.code} to ${sender_email}`
     );
 
+    // Add voucher dates to the voucher object for email
+    const voucherWithDates = {
+      ...voucher,
+      used_at: now.toISOString(),
+      expiry_date: expiryDate.toISOString(),
+    };
+
     // Send email
     console.log("🚀 Calling sendVoucherEmail function...");
     await sendVoucherEmail(
       sender_email,
       pendingTx?.name || "Customer",
-      voucher,
+      voucherWithDates,
       transactionId,
       amount
     );
@@ -499,6 +463,20 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   }
+}
+
+// Helper function to format date in Indonesian format
+function formatIndonesianDate(dateString: string): string {
+  const date = new Date(dateString);
+  const options: Intl.DateTimeFormatOptions = {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Jakarta",
+  };
+  return date.toLocaleDateString("id-ID", options);
 }
 
 // Helper function to send voucher email
@@ -526,32 +504,202 @@ async function sendVoucherEmail(
     const hasDiscount = voucher.discounted_amount !== null;
     const actualPrice = voucher.discounted_amount || voucher.amount;
 
+    // Format dates
+    const usedAt = formatIndonesianDate(voucher.used_at);
+    const expiryDate = formatIndonesianDate(voucher.expiry_date);
+
+    // Calculate discount
+    const discountAmount = voucher.amount - actualPrice;
+    const discountPercentage = hasDiscount
+      ? Math.round((discountAmount / voucher.amount) * 100)
+      : 0;
+
     console.log("📤 Calling Resend API...");
     const emailResult = await resend.emails.send({
       from: "noreply@jajan.flip.id",
       to: email,
-      subject: "Your Voucher Code - Payment Successful!",
+      subject: "Kode Voucher Kopi Kenangan",
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #4CAF50;">Payment Successful! 🎉</h2>
-          <p>Dear ${name},</p>
-          <p>Thank you for your payment. Here is your voucher code:</p>
-          <div style="background-color: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
-            <h1 style="color: #333; font-size: 32px; letter-spacing: 4px; margin: 0;">${voucher.code}</h1>
-          </div>
-          <p><strong>Product:</strong> ${voucher.product_name}</p>
-          ${
-            hasDiscount
-              ? `
-            <p><strong>Original Price:</strong> <span style="text-decoration: line-through; color: #999;">Rp ${voucher.amount.toLocaleString("id-ID")}</span></p>
-            <p><strong>Your Price:</strong> <span style="color: #4CAF50; font-size: 18px;">Rp ${actualPrice.toLocaleString("id-ID")}</span> 🎉</p>
-          `
-              : `<p><strong>Amount:</strong> Rp ${amount.toLocaleString("id-ID")}</p>`
-          }
-          <p><strong>Transaction ID:</strong> ${transactionId}</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-          <p style="color: #666; font-size: 12px;">If you have any questions, please contact our support team.</p>
-        </div>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @media only screen and (max-width: 600px) {
+      .email-container { width: 100% !important; }
+      .content-wrapper { padding: 0 12px 32px !important; }
+      .header-padding { padding: 32px 16px 24px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:'Proxima Nova',Arial,sans-serif">
+  <table width="100%" cellspacing="0" cellpadding="0" style="background-color:#fee9b4">
+    <tr><td style="padding:20px 10px">
+      <table class="email-container" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;margin:0 auto;border-radius:16px;overflow:hidden">
+        
+        <!-- Header -->
+        <tr><td class="header-padding" style="padding:40px 24px 32px;text-align:center">
+          <h1 style="margin:0;font-size:18px;font-weight:700;color:#222223">Flip Jajan</h1>
+        </td></tr>
+
+        <!-- Main Content -->
+        <tr><td class="content-wrapper" style="padding:0 16px 40px">
+          
+          <!-- Top Banner with background image -->
+          <table width="100%" cellspacing="0" cellpadding="0" style="background-image:url('https://framerusercontent.com/images/5D5xu6i8MGjFDaKeHVamRcvkY.svg');background-position:center top;background-repeat:no-repeat;background-size:cover">
+            <tr><td style="padding:42px 24px;text-align:center;border-radius:24px 24px 0 0">
+              <p style="margin:0;font-size:13px;font-weight:700;color:#ffffff;line-height:20px">
+                Tunjukan kode voucher saat pembayaran di kasir
+              </p>
+            </td></tr>
+          
+            <!-- Voucher Card -->
+            <tr><td style="padding:16px 20px 32px;border-radius:0 0 24px 24px">
+              
+              <!-- Success Icon -->
+              <table width="100%" cellspacing="0" cellpadding="0">
+                <tr><td style="text-align:center;padding-bottom:12px">
+                  <img src="https://framerusercontent.com/images/OulmwLShrgbQsSAm0fvOpzJzU.svg" alt="Success" width="40" height="40" style="border-radius:12px;display:inline-block" />
+                </td></tr>
+              </table>
+              
+              <!-- Title -->
+              <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#222223;text-align:center">
+                Pembelian Voucher Berhasil
+              </p>
+              <p style="margin:0 0 20px;font-size:12px;font-weight:500;color:#aaabad;text-align:center">
+                ${usedAt}
+              </p>
+
+              <!-- Divider -->
+              <div style="margin:20px 0"></div>
+
+              <!-- Product Name -->
+              <p style="margin:0 0 10px;font-size:16px;font-weight:700;color:#543D07;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">
+                ${voucher.product_name}
+              </p>
+
+              <!-- Voucher Code Label -->
+              <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#C6C6C6;text-align:center">
+                Kode Voucher
+              </p>
+
+              <!-- Voucher Code -->
+              <div style="text-align:center;margin-bottom:20px">
+                <span style="font-size:24px;font-weight:700;color:#543D07;letter-spacing:2px">
+                  ${voucher.code}
+                </span>
+              </div>
+
+              <!-- Transaction Details -->
+              <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:16px">
+                <tr><td style="padding:12px 0;border-bottom:1px solid #f0f0f0">
+                  <table width="100%"><tr>
+                    <td style="font-size:12px;color:#737373;font-weight:500;width:50%;padding-right:10px">Trx ID</td>
+                    <td style="font-size:12px;color:#737373;font-weight:500;text-align:right;width:50%;word-break:break-all">${transactionId}</td>
+                  </tr></table>
+                </td></tr>
+                <tr><td style="padding:12px 0;border-bottom:1px solid #f0f0f0">
+                  <table width="100%"><tr>
+                    <td style="font-size:12px;color:#737373;font-weight:500;width:50%">Harga Produk</td>
+                    <td style="font-size:12px;color:#737373;font-weight:500;text-align:right;width:50%">Rp ${voucher.amount.toLocaleString("id-ID")}</td>
+                  </tr></table>
+                </td></tr>
+                <tr><td style="padding:12px 0;border-bottom:1px solid #f0f0f0">
+                  <table width="100%"><tr>
+                    <td style="font-size:12px;color:#737373;font-weight:500;width:50%">Harga Voucher</td>
+                    <td style="font-size:12px;color:#737373;font-weight:500;text-align:right;width:50%">Rp ${actualPrice.toLocaleString("id-ID")}</td>
+                  </tr></table>
+                </td></tr>
+                ${
+                  hasDiscount
+                    ? `
+                <tr><td style="padding:12px 0;border-bottom:1px solid #f0f0f0">
+                  <table width="100%"><tr>
+                    <td style="font-size:12px;color:#FD6542;font-weight:700;width:50%">Diskon</td>
+                    <td style="font-size:12px;color:#FD6542;font-weight:700;text-align:right;width:50%">${discountPercentage}%</td>
+                  </tr></table>
+                </td></tr>
+                `
+                    : ""
+                }
+                <tr><td style="padding:12px 0">
+                  <table width="100%"><tr>
+                    <td style="font-size:12px;color:#737373;font-weight:500;width:50%">Tanggal Kedaluwarsa</td>
+                    <td style="font-size:12px;color:#737373;font-weight:500;text-align:right;width:50%">${expiryDate}</td>
+                  </tr></table>
+                </td></tr>
+              </table>
+
+              <!-- Terms -->
+              <div style="border-top:1px dashed #E3E3E4;padding-top:12px;text-align:center">
+                <p style="margin:0;font-size:12px;font-weight:500;color:#747474;line-height:18px">
+                  Berlaku di semua outlet kecuali Kenangan Heritage, Kenangan Signature, Chigo, Bandara atau Booth/Event
+                </p>
+              </div>
+
+            </td></tr>
+          </table>
+
+          <!-- How to Use Section -->
+          <table width="100%" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:24px;margin-top:30px;box-shadow:0 4px 20px rgba(168,122,13,0.2)">
+            <tr><td style="padding:20px">
+              <h2 style="margin:0 0 20px;font-size:18px;font-weight:700;color:#222223;text-align:center">
+                Cara Pakai Voucher
+              </h2>
+              <table width="100%" cellspacing="0" cellpadding="0">
+                <tr><td style="padding:6px 0">
+                  <table width="100%"><tr>
+                    <td style="font-size:14px;color:#747474;font-weight:500;width:24px;vertical-align:top;padding-right:8px">1.</td>
+                    <td style="font-size:14px;color:#747474;font-weight:600;line-height:22px">
+                      Kamu bisa ke outlet Kopi Kenangan terdekat kecuali outlet bandara.
+                    </td>
+                  </tr></table>
+                </td></tr>
+                <tr><td style="padding:6px 0">
+                  <table width="100%"><tr>
+                    <td style="font-size:14px;color:#747474;font-weight:500;width:24px;vertical-align:top;padding-right:8px">2.</td>
+                    <td style="font-size:14px;color:#747474;font-weight:600;line-height:22px">
+                      Pesan kopi atau roti yang kamu inginkan
+                    </td>
+                  </tr></table>
+                </td></tr>
+                <tr><td style="padding:6px 0">
+                  <table width="100%"><tr>
+                    <td style="font-size:14px;color:#747474;font-weight:500;width:24px;vertical-align:top;padding-right:8px">3.</td>
+                    <td style="font-size:14px;color:#747474;font-weight:600;line-height:22px">
+                      Sebelum bayar, tunjukan kode voucher yang kamu dapat dari Flip Jajan, ke kasir Kopi Kenangan
+                    </td>
+                  </tr></table>
+                </td></tr>
+                <tr><td style="padding:6px 0">
+                  <table width="100%"><tr>
+                    <td style="font-size:14px;color:#747474;font-weight:500;width:24px;vertical-align:top;padding-right:8px">4.</td>
+                    <td style="font-size:14px;color:#747474;font-weight:600;line-height:22px">
+                      Bayar pesananmu seperti biasa
+                    </td>
+                  </tr></table>
+                </td></tr>
+                <tr><td style="padding:6px 0">
+                  <table width="100%"><tr>
+                    <td style="font-size:14px;color:#747474;font-weight:500;width:24px;vertical-align:top;padding-right:8px">5.</td>
+                    <td style="font-size:14px;color:#747474;font-weight:600;line-height:22px">
+                      Cek Syarat dan Ketentuan yang berlaku berikut ini
+                    </td>
+                  </tr></table>
+                </td></tr>
+              </table>
+            </td></tr>
+          </table>
+
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
       `,
     });
 
