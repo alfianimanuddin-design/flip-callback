@@ -10,7 +10,7 @@ const corsHeaders = {
 };
 
 // Minimum amount for QRIS payments (typically 10,000 IDR for Flip)
-const MIN_QRIS_AMOUNT = 10000;
+const MIN_QRIS_AMOUNT = 1000;
 
 export async function POST(request: NextRequest) {
   try {

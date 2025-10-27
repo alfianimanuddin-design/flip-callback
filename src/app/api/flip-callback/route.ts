@@ -68,12 +68,34 @@ export async function POST(request: NextRequest) {
       `🔍 Transaction ID: ${transactionId}, Bill Link ID: ${bill_link_id}, Status: ${status}`
     );
 
-    // Check if transaction already exists with this Flip transaction ID
-    const { data: existingTx } = await supabase
+    // Check if transaction already exists with this Flip transaction ID or bill_link_id
+    let existingTx = null;
+
+    // First try to find by transaction_id
+    const { data: txById } = await supabase
       .from("transactions")
       .select("*")
       .eq("transaction_id", transactionId)
-      .single();
+      .maybeSingle();
+
+    if (txById) {
+      existingTx = txById;
+      console.log(`✅ Found transaction by transaction_id: ${transactionId}`);
+    }
+
+    // If not found, try by bill_link_id
+    if (!existingTx && bill_link_id) {
+      const { data: txByBillLink } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("bill_link_id", bill_link_id)
+        .maybeSingle();
+
+      if (txByBillLink) {
+        existingTx = txByBillLink;
+        console.log(`✅ Found transaction by bill_link_id: ${bill_link_id}`);
+      }
+    }
 
     if (existingTx) {
       console.log(
@@ -206,6 +228,74 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // ========== HANDLE FAILED/CANCELLED/EXPIRED PAYMENTS ==========
+      // Release voucher if payment failed, cancelled, or expired
+      if (
+        [
+          "CANCELLED",
+          "FAILED",
+          "EXPIRED",
+          "cancelled",
+          "failed",
+          "expired",
+        ].includes(status)
+      ) {
+        console.log(
+          `⚠️ Payment ${status} detected - Attempting to release voucher for transaction: ${existingTx.id}`
+        );
+
+        // Check if there's a voucher to release
+        if (existingTx.voucher_code) {
+          console.log(`🔓 Releasing voucher: ${existingTx.voucher_code}`);
+
+          // Release the voucher
+          const { error: voucherReleaseError } = await supabase
+            .from("vouchers")
+            .update({ used: false })
+            .eq("code", existingTx.voucher_code);
+
+          if (voucherReleaseError) {
+            console.error("❌ Failed to release voucher:", voucherReleaseError);
+          } else {
+            console.log(
+              `✅ Successfully released voucher: ${existingTx.voucher_code}`
+            );
+          }
+        } else {
+          console.log(
+            "ℹ️ No voucher assigned to this transaction, nothing to release"
+          );
+        }
+
+        // Update transaction status to reflect the failure
+        const { error: statusUpdateError } = await supabase
+          .from("transactions")
+          .update({
+            status: status,
+            bill_link_id: bill_link_id,
+          })
+          .eq("id", existingTx.id);
+
+        if (statusUpdateError) {
+          console.error(
+            "❌ Error updating transaction status:",
+            statusUpdateError
+          );
+        } else {
+          console.log(
+            `✅ Transaction ${existingTx.id} updated to status: ${status}`
+          );
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: `Transaction updated to ${status}`,
+          voucher_released: true,
+          status: status,
+        });
+      }
+      // ========== END FAILED/CANCELLED/EXPIRED HANDLING ==========
+
       // If status is already SUCCESSFUL, just ensure voucher has expiry
       if (status === "SUCCESSFUL" && existingTx.voucher_code) {
         const { data: voucherCheck } = await supabase
@@ -244,6 +334,77 @@ export async function POST(request: NextRequest) {
         status: existingTx.status,
       });
     }
+
+    // ========== HANDLE FAILURES FOR NON-EXISTING TRANSACTIONS ==========
+    // If no transaction found yet but payment failed, try to find by other means
+    if (
+      !existingTx &&
+      [
+        "CANCELLED",
+        "FAILED",
+        "EXPIRED",
+        "cancelled",
+        "failed",
+        "expired",
+      ].includes(status)
+    ) {
+      console.log(
+        `⚠️ Payment ${status} but no transaction found by ID. Searching by email and amount...`
+      );
+
+      // Try to find pending transaction by email and amount
+      const { data: pendingTxForFailure } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("email", sender_email)
+        .eq("amount", amount)
+        .eq("status", "PENDING")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pendingTxForFailure && pendingTxForFailure.voucher_code) {
+        console.log(
+          `🔓 Found pending transaction ${pendingTxForFailure.id} - Releasing voucher: ${pendingTxForFailure.voucher_code}`
+        );
+
+        // Release the voucher
+        const { error: releaseError } = await supabase
+          .from("vouchers")
+          .update({ used: false })
+          .eq("code", pendingTxForFailure.voucher_code);
+
+        if (releaseError) {
+          console.error("❌ Failed to release voucher:", releaseError);
+        } else {
+          console.log(
+            `✅ Successfully released voucher: ${pendingTxForFailure.voucher_code}`
+          );
+        }
+
+        // Update transaction status
+        await supabase
+          .from("transactions")
+          .update({
+            status: status,
+            transaction_id: transactionId,
+            bill_link_id: bill_link_id,
+          })
+          .eq("id", pendingTxForFailure.id);
+
+        console.log(
+          `✅ Updated transaction ${pendingTxForFailure.id} to ${status}`
+        );
+
+        return NextResponse.json({
+          success: true,
+          message: `Transaction updated to ${status} and voucher released`,
+          voucher_released: true,
+          status: status,
+        });
+      }
+    }
+    // ========== END FAILURE HANDLING FOR NON-EXISTING TRANSACTIONS ==========
 
     // Find the pending transaction by email and amount (this has the temp_id)
     const { data: pendingTx } = await supabase
