@@ -85,6 +85,27 @@ export async function POST(request: NextRequest) {
           });
         } else {
           console.log(`✅ Released voucher: ${tx.voucher_code}`);
+
+          // Delete the transaction after releasing the voucher
+          const { error: deleteError } = await supabase
+            .from("transactions")
+            .delete()
+            .eq("id", tx.id);
+
+          if (deleteError) {
+            console.error(
+              `❌ Failed to delete transaction ${tx.id}:`,
+              deleteError
+            );
+            errors.push({
+              transaction_id: tx.id,
+              voucher_code: tx.voucher_code,
+              error: `Voucher released but failed to delete transaction: ${deleteError.message}`,
+            });
+          } else {
+            console.log(`🗑️ Deleted transaction: ${tx.id}`);
+          }
+
           releasedCount++;
           released.push({
             transaction_id: tx.id,
@@ -104,14 +125,15 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(
-      `✅ Cleanup complete: ${releasedCount}/${expiredTransactions.length} vouchers released`
+      `✅ Cleanup complete: ${releasedCount}/${expiredTransactions.length} vouchers released and transactions deleted`
     );
 
     return NextResponse.json({
       success: true,
-      message: `Released ${releasedCount} vouchers from ${expiredTransactions.length} expired transactions`,
+      message: `Released ${releasedCount} vouchers and deleted ${releasedCount} expired transactions`,
       total_found: expiredTransactions.length,
       released: releasedCount,
+      deleted: releasedCount,
       released_vouchers: released,
       errors: errors.length > 0 ? errors : undefined,
     });
