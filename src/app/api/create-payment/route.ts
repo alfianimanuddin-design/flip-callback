@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: `No available vouchers for ${product_name}`,
+          message: `Yah, voucher ${product_name} sudah habis`,
         },
         {
           status: 400,
@@ -190,8 +190,8 @@ export async function POST(request: NextRequest) {
     console.log("📤 Step 3 - Creating payment:", formData.toString());
 
     const flipResponse = await fetch(
-      "https://bigflip.id/big_sandbox_api/v2/pwf/bill",
-      // "https://bigflip.id/api/v2/pwf/bill",
+      // "https://bigflip.id/big_sandbox_api/v2/pwf/bill",
+      "https://bigflip.id/api/v2/pwf/bill",
       {
         method: "POST",
         headers: {
