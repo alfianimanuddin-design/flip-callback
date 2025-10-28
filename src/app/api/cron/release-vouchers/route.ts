@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+// TEST CRON JOB FOR RELEASE VOUCHERS
+
 export const maxDuration = 10; // Max duration for free tier
 
 export async function GET(request: NextRequest) {
