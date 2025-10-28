@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
       product_name,
       name,
       sender_bank_type,
+      expired_date,
     } = await request.json();
 
     // Validate inputs
@@ -172,6 +173,18 @@ export async function POST(request: NextRequest) {
     // Create auth header
     const authHeader = `Basic ${Buffer.from(process.env.FLIP_SECRET_KEY + ":").toString("base64")}`;
 
+    // Calculate expiry time (5 minutes from now)
+    const expiryDate = new Date();
+    expiryDate.setMinutes(expiryDate.getMinutes() + 5);
+
+    // Format as YYYY-MM-DD HH:mm for Flip API
+    const year = expiryDate.getFullYear();
+    const month = String(expiryDate.getMonth() + 1).padStart(2, '0');
+    const day = String(expiryDate.getDate()).padStart(2, '0');
+    const hours = String(expiryDate.getHours()).padStart(2, '0');
+    const minutes = String(expiryDate.getMinutes()).padStart(2, '0');
+    const formattedExpiry = `${year}-${month}-${day} ${hours}:${minutes}`;
+
     // Step 3: Create payment with pre-filled customer data
     const formData = new URLSearchParams();
     formData.append("step", "3");
@@ -186,6 +199,12 @@ export async function POST(request: NextRequest) {
       "redirect_url",
       `https://flip-callback.vercel.app/api/redirect-payment?transaction_id=${tempId}`
     );
+
+    // Add custom expiry time (use provided or default to 5 minutes)
+    const expiryToUse = expired_date || formattedExpiry;
+    formData.append("expired_date", expiryToUse);
+
+    console.log(`⏰ Payment expiry set to: ${expiryToUse}`);
 
     console.log("📤 Step 3 - Creating payment:", formData.toString());
 
