@@ -12,6 +12,11 @@ export async function middleware(req: NextRequest) {
 
   // Check if user is accessing admin routes
   if (req.nextUrl.pathname.startsWith("/admin")) {
+    // Allow access to login page without authentication
+    if (req.nextUrl.pathname === "/admin/login") {
+      return res;
+    }
+
     if (!session) {
       // Redirect to login if not authenticated
       return NextResponse.redirect(new URL("/admin/login", req.url));
