@@ -351,7 +351,7 @@ export default function VoucherSelection() {
                     )}
 
                     {/* Vertical Divider Line */}
-                    <div className="absolute right-0 top-2.5 h-full w-[2px] bg-gray-200" />
+                    <div className="absolute right-0 top-2.5 h-full w-0.5 bg-gray-200" />
                   </div>
 
                   {/* Product Details Section */}
@@ -392,7 +392,7 @@ export default function VoucherSelection() {
 
                       {/* Buy Button or Out of Stock Badge */}
                       {isOutOfStock ? (
-                        <div className="relative w-[60px] h-[24px]">
+                        <div className="relative w-[60px] h-6">
                           <div className="absolute inset-0 bg-linear-to-r from-[#d4d4d4] to-[#9ca3af] rounded-full opacity-50" />
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-white text-[10px] font-bold">
