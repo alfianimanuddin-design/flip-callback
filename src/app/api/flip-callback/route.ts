@@ -689,170 +689,122 @@ async function sendVoucherEmail(
   <style>
     @media only screen and (max-width: 600px) {
       .email-container { width: 100% !important; }
-      .content-wrapper { padding: 0 12px 32px !important; }
-      .header-padding { padding: 32px 16px 24px !important; }
+      .content-wrapper { padding: 20px !important; }
+      .voucher-code { font-size: 28px !important; }
+      .header-title { font-size: 32px !important; }
     }
   </style>
 </head>
-<body style="margin:0;padding:0;background-color:#fee9b4;font-family:'Proxima Nova',Arial,sans-serif">
-  <table width="100%" cellspacing="0" cellpadding="0" style="background-color:#fee9b4">
-    <tr><td style="padding:20px 10px">
-      <table class="email-container" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;margin:0 auto;border-radius:16px;overflow:hidden">
-        
-        <!-- Header -->
-        <tr><td class="header-padding" style="padding:40px 24px 32px;text-align:center">
-          <h1 style="margin:0;font-size:18px;font-weight:700;color:#222223">Flip Jajan</h1>
-        </td></tr>
+<body style="margin:0;padding:0;background-color:#F7F7F8;font-family:Arial,sans-serif;overflow-x:hidden">
+  <table width="100%" cellspacing="0" cellpadding="0" style="background-color:#F7F7F8;min-height:100vh">
+    <tr><td style="padding:40px 20px">
+      <table class="email-container" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;margin:0 auto;background-color:#f5e6c3;position:relative;overflow:hidden">
 
-        <!-- Main Content -->
-        <tr><td class="content-wrapper" style="padding:0 16px 40px">
-          
-          <!-- Top Banner with background image -->
-          <table width="100%" cellspacing="0" cellpadding="0" style="background-image:url('https://framerusercontent.com/images/5D5xu6i8MGjFDaKeHVamRcvkY.svg');background-position:center top;background-repeat:no-repeat;background-size:cover">
-            <tr><td style="padding:42px 24px;text-align:center;border-radius:24px 24px 0 0">
-              <p style="margin:0;font-size:13px;font-weight:700;color:#ffffff;line-height:20px">
-                Tunjukan kode voucher saat pembayaran di kasir
-              </p>
-            </td></tr>
-          
-            <!-- Voucher Card -->
-            <tr><td style="padding:16px 20px 32px;background:#ffffff;border-radius:0 0 24px 24px">
-              
-              <!-- Success Icon -->
-              <table width="100%" cellspacing="0" cellpadding="0">
-                <tr><td style="text-align:center;padding-bottom:12px">
-                  <img src="https://framerusercontent.com/images/OulmwLShrgbQsSAm0fvOpzJzU.svg" alt="Success" width="40" height="40" style="border-radius:12px;display:inline-block" />
-                </td></tr>
-              </table>
-              
-              <!-- Title -->
-              <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#222223;text-align:center">
-                Pembelian Voucher Berhasil
-              </p>
-              <p style="margin:0 0 20px;font-size:12px;font-weight:500;color:#aaabad;text-align:center">
-                ${usedAt}
-              </p>
+        <!-- Header with decorative assets -->
+        <tr><td class="content-wrapper" style="padding:0 20px 40px;text-align:center;position:relative">
 
-              <!-- Divider -->
-              <div style="margin:20px 0"></div>
+          <!-- Sunburst background - top right -->
+          <div style="position:absolute;top:-650px;right:-700px;z-index:1;opacity:0.7">
+            <img src="https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/sunburst.png" alt="" width="1400" height="1400" style="display:block" />
+          </div>
 
-              <!-- Product Name -->
-              <p style="margin:0 0 10px;font-size:16px;font-weight:700;color:#543D07;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">
-                ${voucher.product_name}
-              </p>
 
-              <!-- Voucher Code Label -->
-              <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#C6C6C6;text-align:center">
-                Kode Voucher
-              </p>
 
-              <!-- Voucher Code -->
-              <div style="text-align:center;margin-bottom:20px">
-                <span style="font-size:24px;font-weight:700;color:#543D07;letter-spacing:2px">
-                  ${voucher.code}
-                </span>
-              </div>
+          <div style="position:relative;z-index:5">
 
-              <!-- Transaction Details -->
-              <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:16px">
-                <tr><td style="padding:12px 0;border-bottom:1px solid #f0f0f0">
-                  <table width="100%"><tr>
-                    <td style="font-size:12px;color:#737373;font-weight:500;width:50%;padding-right:10px">Trx ID</td>
-                    <td style="font-size:12px;color:#737373;font-weight:500;text-align:right;width:50%;word-break:break-all">${transactionId}</td>
-                  </tr></table>
-                </td></tr>
-                <tr><td style="padding:12px 0;border-bottom:1px solid #f0f0f0">
-                  <table width="100%"><tr>
-                    <td style="font-size:12px;color:#737373;font-weight:500;width:50%">Harga Produk</td>
-                    <td style="font-size:12px;color:#737373;font-weight:500;text-align:right;width:50%">Rp ${voucher.amount.toLocaleString("id-ID")}</td>
-                  </tr></table>
-                </td></tr>
-                <tr><td style="padding:12px 0;border-bottom:1px solid #f0f0f0">
-                  <table width="100%"><tr>
-                    <td style="font-size:12px;color:#737373;font-weight:500;width:50%">Harga Voucher</td>
-                    <td style="font-size:12px;color:#737373;font-weight:500;text-align:right;width:50%">Rp ${actualPrice.toLocaleString("id-ID")}</td>
-                  </tr></table>
-                </td></tr>
-                ${
-                  hasDiscount
-                    ? `
-                <tr><td style="padding:12px 0;border-bottom:1px solid #f0f0f0">
-                  <table width="100%"><tr>
-                    <td style="font-size:12px;color:#FD6542;font-weight:700;width:50%">Diskon</td>
-                    <td style="font-size:12px;color:#FD6542;font-weight:700;text-align:right;width:50%">${discountPercentage}%</td>
-                  </tr></table>
-                </td></tr>
-                `
-                    : ""
-                }
-                <tr><td style="padding:12px 0">
-                  <table width="100%"><tr>
-                    <td style="font-size:12px;color:#737373;font-weight:500;width:50%">Tanggal Kedaluwarsa</td>
-                    <td style="font-size:12px;color:#737373;font-weight:500;text-align:right;width:50%">${expiryDate}</td>
-                  </tr></table>
-                </td></tr>
-              </table>
+          <!-- Top Header with Flip Jajan and Logo -->
+          <div style="margin-bottom:40px;padding:20px 30px;border-radius:0 0 30px 30px;background-color:#FDEFC9">
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td style="text-align:left;vertical-align:middle">
+                  <h2 style="margin:0;font-size:22px;font-weight:700;color:#543d07">Flip Jajan</h2>
+                </td>
+                <td style="text-align:right;vertical-align:middle">
+                  <img src="https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/flip-logo.png" alt="Flip" width="50" height="50" style="display:block;margin-left:auto" />
+                </td>
+              </tr>
+            </table>
+          </div>
 
-              <!-- Terms -->
-              <div style="border-top:1px dashed #E3E3E4;padding-top:12px;text-align:center">
-                <p style="margin:0;font-size:12px;font-weight:500;color:#747474;line-height:18px">
-                  Berlaku di semua outlet kecuali Kenangan Heritage, Kenangan Signature, Chigo, Bandara atau Booth/Event
-                </p>
-              </div>
+          <h1 class="header-title" style="margin:0 0 40px;font-size:48px;font-weight:700;color:#543d07;line-height:1.2">
+            Detail Voucher
+          </h1>
 
-            </td></tr>
-          </table>
+          <p style="margin:0 0 30px;font-size:18px;font-weight:600;color:#543d07">
+            Kode Voucher ${voucher.product_name}
+          </p>
 
-          <!-- How to Use Section -->
-          <table width="100%" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:24px;margin-top:30px;box-shadow:0 4px 20px rgba(168,122,13,0.2)">
-            <tr><td style="padding:20px">
-              <h2 style="margin:0 0 20px;font-size:18px;font-weight:700;color:#222223;text-align:center">
-                Cara Pakai Voucher
-              </h2>
-              <table width="100%" cellspacing="0" cellpadding="0">
-                <tr><td style="padding:6px 0">
-                  <table width="100%"><tr>
-                    <td style="font-size:14px;color:#747474;font-weight:500;width:24px;vertical-align:top;padding-right:8px">1.</td>
-                    <td style="font-size:14px;color:#747474;font-weight:600;line-height:22px">
-                      Kamu bisa ke outlet Kopi Kenangan terdekat kecuali outlet bandara.
-                    </td>
-                  </tr></table>
-                </td></tr>
-                <tr><td style="padding:6px 0">
-                  <table width="100%"><tr>
-                    <td style="font-size:14px;color:#747474;font-weight:500;width:24px;vertical-align:top;padding-right:8px">2.</td>
-                    <td style="font-size:14px;color:#747474;font-weight:600;line-height:22px">
-                      Pesan kopi atau roti yang kamu inginkan
-                    </td>
-                  </tr></table>
-                </td></tr>
-                <tr><td style="padding:6px 0">
-                  <table width="100%"><tr>
-                    <td style="font-size:14px;color:#747474;font-weight:500;width:24px;vertical-align:top;padding-right:8px">3.</td>
-                    <td style="font-size:14px;color:#747474;font-weight:600;line-height:22px">
-                      Sebelum bayar, tunjukan kode voucher yang kamu dapat dari Flip Jajan, ke kasir Kopi Kenangan
-                    </td>
-                  </tr></table>
-                </td></tr>
-                <tr><td style="padding:6px 0">
-                  <table width="100%"><tr>
-                    <td style="font-size:14px;color:#747474;font-weight:500;width:24px;vertical-align:top;padding-right:8px">4.</td>
-                    <td style="font-size:14px;color:#747474;font-weight:600;line-height:22px">
-                      Bayar pesananmu seperti biasa
-                    </td>
-                  </tr></table>
-                </td></tr>
-                <tr><td style="padding:6px 0">
-                  <table width="100%"><tr>
-                    <td style="font-size:14px;color:#747474;font-weight:500;width:24px;vertical-align:top;padding-right:8px">5.</td>
-                    <td style="font-size:14px;color:#747474;font-weight:600;line-height:22px">
-                      Cek Syarat dan Ketentuan yang berlaku berikut ini
-                    </td>
-                  </tr></table>
-                </td></tr>
-              </table>
-            </td></tr>
-          </table>
+          <!-- Voucher Code Box -->
+          <div style="background:linear-gradient(180deg, #423005 0%, #A87A0D 100%);border-radius:50px;padding:25px 40px;margin-bottom:30px;box-shadow:0 8px 24px rgba(84,61,7,0.3)">
+            <span class="voucher-code" style="font-size:36px;font-weight:700;color:#ffffff;letter-spacing:3px">
+              ${voucher.code}
+            </span>
+          </div>
+
+          <p style="margin:0 0 50px;font-size:16px;color:#6b5d45;line-height:1.6">
+            Tunjukan kode voucher saat pembayaran di kasir atau masukkan kode di Aplikasi Kopi Kenangan.
+          </p>
+
+          <!-- Details Box -->
+          <div style="background:#ffffff;border-radius:30px;padding:16px 24px;margin-bottom:40px;box-shadow:0 4px 16px rgba(84,61,7,0.15)">
+
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr><td style="padding:16px 0;border-bottom:1px solid #f0f0f0">
+                <table width="100%"><tr>
+                  <td style="font-size:16px;color:#6b5d45;font-weight:400;text-align:left">Transaksi ID</td>
+                  <td style="font-size:16px;color:#543d07;font-weight:700;text-align:right">${transactionId}</td>
+                </tr></table>
+              </td></tr>
+
+              <tr><td style="padding:16px 0;border-bottom:1px solid #f0f0f0">
+                <table width="100%"><tr>
+                  <td style="font-size:16px;color:#6b5d45;font-weight:400;text-align:left">Nilai Voucher</td>
+                  <td style="font-size:16px;color:#543d07;font-weight:700;text-align:right">Rp ${voucher.amount.toLocaleString("id-ID")}</td>
+                </tr></table>
+              </td></tr>
+
+              <tr><td style="padding:16px 0;border-bottom:1px solid #f0f0f0">
+                <table width="100%"><tr>
+                  <td style="font-size:16px;color:#6b5d45;font-weight:400;text-align:left">Harga Voucher</td>
+                  <td style="font-size:16px;color:#543d07;font-weight:700;text-align:right">Rp ${actualPrice.toLocaleString("id-ID")}</td>
+                </tr></table>
+              </td></tr>
+
+              ${
+                hasDiscount
+                  ? `
+              <tr><td style="padding:16px 0;border-bottom:1px solid #f0f0f0">
+                <table width="100%"><tr>
+                  <td style="font-size:16px;color:#6b5d45;font-weight:400;text-align:left">Potongan Harga</td>
+                  <td style="font-size:16px;color:#d32f2f;font-weight:700;text-align:right">${discountPercentage}%</td>
+                </tr></table>
+              </td></tr>
+              `
+                  : ""
+              }
+
+              <tr><td style="padding:16px 0">
+                <table width="100%"><tr>
+                  <td style="font-size:16px;color:#6b5d45;font-weight:400;text-align:left">Berlaku Sampai</td>
+                  <td style="font-size:16px;color:#d32f2f;font-weight:700;text-align:right">${expiryDate}</td>
+                </tr></table>
+              </td></tr>
+            </table>
+
+          </div>
+
+          <!-- Terms -->
+          <div style="margin-bottom:30px">
+            <p style="margin:0 0 20px;font-size:15px;color:#6b5d45;line-height:1.8">
+              Voucher tidak dapat digunakan di aplikasi Gofood, Grabfood, atau aplikasi delivery online lainnya.
+            </p>
+
+            <p style="margin:0;font-size:15px;color:#6b5d45;line-height:1.8">
+              Voucher dapat digunakan untuk semua produk di outlet offline Kopi Kenangan kecuali tumbler, tanpa minimum pembelian, di outlet manapun di Indonesia, kecuali outlet yang berlokasi di Bandara.
+            </p>
+          </div>
+
+          </div><!-- Close position relative wrapper -->
 
         </td></tr>
 
