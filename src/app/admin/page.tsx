@@ -553,25 +553,42 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td style={tableCellStyle}>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            padding: "6px 12px",
-                            borderRadius: "6px",
-                            fontSize: "13px",
-                            fontWeight: "600",
-                            backgroundColor:
-                              tx.status === "SUCCESSFUL"
-                                ? "#D1FAE5"
-                                : "#FEF3C7",
-                            color:
-                              tx.status === "SUCCESSFUL"
-                                ? "#065F46"
-                                : "#92400E",
-                          }}
-                        >
-                          {tx.status}
-                        </span>
+                        {(() => {
+                          const statusColors = {
+                            SUCCESSFUL: {
+                              bg: "#D1FAE5",
+                              color: "#065F46",
+                            },
+                            PENDING: {
+                              bg: "#FEF3C7",
+                              color: "#92400E",
+                            },
+                            EXPIRED: {
+                              bg: "#FEE2E2",
+                              color: "#991B1B",
+                            },
+                          };
+                          const colors =
+                            statusColors[
+                              tx.status as keyof typeof statusColors
+                            ] || statusColors.PENDING;
+
+                          return (
+                            <span
+                              style={{
+                                display: "inline-block",
+                                padding: "6px 12px",
+                                borderRadius: "6px",
+                                fontSize: "13px",
+                                fontWeight: "600",
+                                backgroundColor: colors.bg,
+                                color: colors.color,
+                              }}
+                            >
+                              {tx.status}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td style={tableCellStyle}>
                         <span

@@ -60,13 +60,33 @@ export async function POST(request: NextRequest) {
     for (const tx of expiredTransactions) {
       if (!tx.voucher_code) {
         console.log(`⏭️ Skipping transaction ${tx.id} - no voucher assigned`);
+
+        // Mark transaction as EXPIRED even if no voucher
+        try {
+          const { error: updateError } = await supabase
+            .from("transactions")
+            .update({ status: "EXPIRED" })
+            .eq("id", tx.id);
+
+          if (updateError) {
+            console.error(
+              `❌ Failed to mark transaction ${tx.id} as EXPIRED:`,
+              updateError
+            );
+          } else {
+            console.log(`✅ Marked transaction ${tx.id} as EXPIRED`);
+          }
+        } catch (err) {
+          console.error(`❌ Error updating transaction ${tx.id}:`, err);
+        }
+
         continue;
       }
 
       console.log(`Processing: ${tx.id} (voucher: ${tx.voucher_code})`);
 
       try {
-        // Just release the voucher - don't update transaction
+        // Release the voucher
         const { error: voucherError } = await supabase
           .from("vouchers")
           .update({ used: false })
@@ -86,24 +106,24 @@ export async function POST(request: NextRequest) {
         } else {
           console.log(`✅ Released voucher: ${tx.voucher_code}`);
 
-          // Delete the transaction after releasing the voucher
-          const { error: deleteError } = await supabase
+          // Mark the transaction as EXPIRED instead of deleting it
+          const { error: updateError } = await supabase
             .from("transactions")
-            .delete()
+            .update({ status: "EXPIRED" })
             .eq("id", tx.id);
 
-          if (deleteError) {
+          if (updateError) {
             console.error(
-              `❌ Failed to delete transaction ${tx.id}:`,
-              deleteError
+              `❌ Failed to mark transaction ${tx.id} as EXPIRED:`,
+              updateError
             );
             errors.push({
               transaction_id: tx.id,
               voucher_code: tx.voucher_code,
-              error: `Voucher released but failed to delete transaction: ${deleteError.message}`,
+              error: `Voucher released but failed to mark transaction as EXPIRED: ${updateError.message}`,
             });
           } else {
-            console.log(`🗑️ Deleted transaction: ${tx.id}`);
+            console.log(`✅ Marked transaction ${tx.id} as EXPIRED`);
           }
 
           releasedCount++;
@@ -125,15 +145,15 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(
-      `✅ Cleanup complete: ${releasedCount}/${expiredTransactions.length} vouchers released and transactions deleted`
+      `✅ Cleanup complete: ${releasedCount}/${expiredTransactions.length} vouchers released and transactions marked as EXPIRED`
     );
 
     return NextResponse.json({
       success: true,
-      message: `Released ${releasedCount} vouchers and deleted ${releasedCount} expired transactions`,
+      message: `Released ${releasedCount} vouchers and marked ${expiredTransactions.length} transactions as EXPIRED`,
       total_found: expiredTransactions.length,
       released: releasedCount,
-      deleted: releasedCount,
+      expired: expiredTransactions.length,
       released_vouchers: released,
       errors: errors.length > 0 ? errors : undefined,
     });
