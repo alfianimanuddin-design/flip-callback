@@ -17,12 +17,17 @@ function getExpiredDate(): string {
   const now = new Date();
   const expiredDate = new Date(now.getTime() + 15 * 60 * 1000); // Add 15 minutes
 
+  // Convert to Indonesian time (WIB/UTC+7)
+  const wibOffset = 7 * 60; // 7 hours in minutes
+  const utcTime = expiredDate.getTime() + (expiredDate.getTimezoneOffset() * 60 * 1000);
+  const wibTime = new Date(utcTime + (wibOffset * 60 * 1000));
+
   // Format as YYYY-MM-DD HH:mm (matching your curl example format)
-  const year = expiredDate.getFullYear();
-  const month = String(expiredDate.getMonth() + 1).padStart(2, "0");
-  const day = String(expiredDate.getDate()).padStart(2, "0");
-  const hours = String(expiredDate.getHours()).padStart(2, "0");
-  const minutes = String(expiredDate.getMinutes()).padStart(2, "0");
+  const year = wibTime.getFullYear();
+  const month = String(wibTime.getMonth() + 1).padStart(2, "0");
+  const day = String(wibTime.getDate()).padStart(2, "0");
+  const hours = String(wibTime.getHours()).padStart(2, "0");
+  const minutes = String(wibTime.getMinutes()).padStart(2, "0");
 
   return `${year}-${month}-${day} ${hours}:${minutes}`;
 }
