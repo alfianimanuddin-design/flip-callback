@@ -177,16 +177,44 @@ export async function POST(request: NextRequest) {
             `🎟️ Transaction already has voucher: ${existingTx.voucher_code}`
           );
 
-          const { data: existingVoucher } = await supabase
-            .from("vouchers")
-            .select(
-              "code, product_name, amount, discounted_amount, used_at, expiry_date"
-            )
-            .eq("code", existingTx.voucher_code)
-            .single();
+          const { data: existingVoucher, error: fetchVoucherError } =
+            await supabase
+              .from("vouchers")
+              .select(
+                "code, product_name, amount, discounted_amount, used_at, expiry_date"
+              )
+              .eq("code", existingTx.voucher_code)
+              .single();
+
+          if (fetchVoucherError) {
+            console.error(
+              "❌ Error fetching existing voucher:",
+              fetchVoucherError
+            );
+          }
 
           if (existingVoucher) {
             voucherToSend = existingVoucher;
+            console.log(
+              `✅ Successfully fetched voucher data for email: ${existingVoucher.code}`
+            );
+          } else {
+            console.error(
+              "❌ Voucher not found in database:",
+              existingTx.voucher_code
+            );
+            // Try to send email anyway with minimal voucher data from transaction
+            voucherToSend = {
+              code: existingTx.voucher_code,
+              product_name: existingTx.product_name || "Kopi Kenangan",
+              amount: existingTx.amount || amount,
+              discounted_amount: null,
+              used_at: new Date().toISOString(),
+              expiry_date: new Date(
+                Date.now() + 30 * 24 * 60 * 60 * 1000
+              ).toISOString(),
+            };
+            console.log("⚠️ Using fallback voucher data for email");
           }
         }
 
@@ -205,9 +233,16 @@ export async function POST(request: NextRequest) {
           console.log(`✅ Transaction ${existingTx.id} updated to SUCCESSFUL`);
         }
 
-        // Send email if we have a voucher
+        // Send email if we have a voucher (including fallback)
         if (voucherToSend) {
           console.log("🚀 Calling sendVoucherEmail function...");
+          console.log("📧 Email recipient:", sender_email);
+          console.log("📧 Customer name:", existingTx.name || "Customer");
+          console.log(
+            "📧 Voucher to send:",
+            JSON.stringify(voucherToSend, null, 2)
+          );
+
           await sendVoucherEmail(
             sender_email,
             existingTx.name || "Customer",
