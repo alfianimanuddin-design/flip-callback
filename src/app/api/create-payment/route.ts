@@ -17,15 +17,14 @@ function getExpiredDate(): string {
   const now = new Date();
   const expiredDate = new Date(now.getTime() + 15 * 60 * 1000); // Add 15 minutes
 
-  // Format as YYYY-MM-DD HH:mm:ss
+  // Format as YYYY-MM-DD HH:mm (matching your curl example format)
   const year = expiredDate.getFullYear();
-  const month = String(expiredDate.getMonth() + 1).padStart(2, '0');
-  const day = String(expiredDate.getDate()).padStart(2, '0');
-  const hours = String(expiredDate.getHours()).padStart(2, '0');
-  const minutes = String(expiredDate.getMinutes()).padStart(2, '0');
-  const seconds = String(expiredDate.getSeconds()).padStart(2, '0');
+  const month = String(expiredDate.getMonth() + 1).padStart(2, "0");
+  const day = String(expiredDate.getDate()).padStart(2, "0");
+  const hours = String(expiredDate.getHours()).padStart(2, "0");
+  const minutes = String(expiredDate.getMinutes()).padStart(2, "0");
 
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -191,15 +190,15 @@ export async function POST(request: NextRequest) {
     // Step 3: Create payment with pre-filled customer data
     const expiredDate = getExpiredDate();
     const formData = new URLSearchParams();
-    formData.append("step", "3");
     formData.append("title", title || "Voucher Purchase");
-    formData.append("amount", actualAmount.toString());
     formData.append("type", "SINGLE");
+    formData.append("amount", actualAmount.toString());
+    formData.append("expired_date", expiredDate);
+    formData.append("step", "3");
     formData.append("sender_name", name);
     formData.append("sender_email", email);
     formData.append("sender_bank", "qris");
     formData.append("sender_bank_type", "wallet_account");
-    formData.append("expired_date", expiredDate);
     formData.append(
       "redirect_url",
       `https://flip-callback.vercel.app/api/redirect-payment?transaction_id=${tempId}`
