@@ -170,6 +170,21 @@ export async function POST(request: NextRequest) {
             voucherToSend = voucher;
           } else {
             console.log("⚠️ No voucher available");
+
+            // Update status even if no voucher available
+            const { error: statusUpdateError } = await supabase
+              .from("transactions")
+              .update({
+                status: "SUCCESSFUL",
+                bill_link_id: bill_link_id,
+              })
+              .eq("id", existingTx.id);
+
+            if (statusUpdateError) {
+              console.error("❌ Error updating status:", statusUpdateError);
+            } else {
+              console.log(`✅ Transaction ${existingTx.id} updated to SUCCESSFUL (no voucher)`);
+            }
           }
         } else {
           // Voucher already exists, fetch it for email
@@ -188,34 +203,37 @@ export async function POST(request: NextRequest) {
           if (existingVoucher) {
             voucherToSend = existingVoucher;
           }
-        }
 
-        // Update status even if no voucher available or already assigned
-        const { error: statusUpdateError } = await supabase
-          .from("transactions")
-          .update({
-            status: "SUCCESSFUL",
-            bill_link_id: bill_link_id,
-          })
-          .eq("id", existingTx.id);
+          // Update bill_link_id if needed
+          if (bill_link_id) {
+            const { error: statusUpdateError } = await supabase
+              .from("transactions")
+              .update({
+                bill_link_id: bill_link_id,
+              })
+              .eq("id", existingTx.id);
 
-        if (statusUpdateError) {
-          console.error("❌ Error updating status:", statusUpdateError);
-        } else {
-          console.log(`✅ Transaction ${existingTx.id} updated to SUCCESSFUL`);
+            if (statusUpdateError) {
+              console.error("❌ Error updating bill_link_id:", statusUpdateError);
+            }
+          }
         }
 
         // Send email if we have a voucher
         if (voucherToSend) {
           console.log("🚀 Calling sendVoucherEmail function...");
-          await sendVoucherEmail(
-            sender_email,
-            existingTx.name || "Customer",
-            voucherToSend,
-            transactionId,
-            amount
-          );
-          console.log("✅ Returned from sendVoucherEmail function");
+          try {
+            await sendVoucherEmail(
+              sender_email,
+              existingTx.name || "Customer",
+              voucherToSend,
+              transactionId,
+              amount
+            );
+            console.log("✅ Returned from sendVoucherEmail function");
+          } catch (emailErr) {
+            console.error("❌ Email sending failed:", emailErr);
+          }
         } else {
           console.log("⚠️ No voucher to send email for");
         }
@@ -596,14 +614,18 @@ export async function POST(request: NextRequest) {
 
     // Send email
     console.log("🚀 Calling sendVoucherEmail function...");
-    await sendVoucherEmail(
-      sender_email,
-      pendingTx?.name || "Customer",
-      voucherWithDates,
-      transactionId,
-      amount
-    );
-    console.log("✅ Returned from sendVoucherEmail function");
+    try {
+      await sendVoucherEmail(
+        sender_email,
+        pendingTx?.name || "Customer",
+        voucherWithDates,
+        transactionId,
+        amount
+      );
+      console.log("✅ Returned from sendVoucherEmail function");
+    } catch (emailErr) {
+      console.error("❌ Email sending failed:", emailErr);
+    }
 
     return NextResponse.json({
       success: true,
