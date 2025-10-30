@@ -15,12 +15,13 @@ const MIN_QRIS_AMOUNT = 1000;
 // Function to calculate expired date (current time + 15 minutes)
 function getExpiredDate(): string {
   const now = new Date();
-  const expiredDate = new Date(now.getTime() + 15 * 60 * 1000); // Add 15 minutes
+  const expiredDate = new Date(now.getTime() + 10 * 60 * 1000); // Add 10 minutes
 
   // Convert to Indonesian time (WIB/UTC+7)
   const wibOffset = 7 * 60; // 7 hours in minutes
-  const utcTime = expiredDate.getTime() + (expiredDate.getTimezoneOffset() * 60 * 1000);
-  const wibTime = new Date(utcTime + (wibOffset * 60 * 1000));
+  const utcTime =
+    expiredDate.getTime() + expiredDate.getTimezoneOffset() * 60 * 1000;
+  const wibTime = new Date(utcTime + wibOffset * 60 * 1000);
 
   // Format as YYYY-MM-DD HH:mm (matching your curl example format)
   const year = wibTime.getFullYear();
