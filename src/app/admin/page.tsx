@@ -29,6 +29,10 @@ export default function AdminDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showAddVoucher, setShowAddVoucher] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const router = useRouter();
 
   useEffect(() => {
@@ -90,6 +94,39 @@ export default function AdminDashboard() {
     router.push("/admin/login");
     router.refresh();
   };
+
+  const filteredTransactions = transactions.filter((tx) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      tx.transaction_id?.toLowerCase().includes(query) ||
+      tx.email?.toLowerCase().includes(query) ||
+      tx.voucher_code?.toLowerCase().includes(query)
+    );
+  });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedTransactions = filteredTransactions.slice(
+    startIndex,
+    endIndex
+  );
+
+  // Reset to page 1 when search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  // Group vouchers by product name
+  const productVoucherCounts = voucherData.availableVouchers.reduce(
+    (acc: Record<string, number>, voucher: any) => {
+      const productName = voucher.product_name || "Unknown Product";
+      acc[productName] = (acc[productName] || 0) + 1;
+      return acc;
+    },
+    {}
+  );
 
   if (loading) {
     return (
@@ -208,9 +245,6 @@ export default function AdminDashboard() {
           />
         </div>
 
-        {/* Add Voucher Form */}
-        <AddVoucherForm onVoucherAdded={fetchData} />
-
         {/* Available Vouchers Section */}
         <div
           style={{
@@ -228,23 +262,55 @@ export default function AdminDashboard() {
               borderBottom: "1px solid #E5E7EB",
             }}
           >
-            <h2
+            <div
               style={{
-                fontSize: "24px",
-                fontWeight: "bold",
-                color: "#111827",
-                margin: 0,
                 display: "flex",
+                justifyContent: "space-between",
                 alignItems: "center",
-                gap: "8px",
+                flexWrap: "wrap",
+                gap: "16px",
               }}
             >
-              Available Vouchers ({voucherData.available})
-            </h2>
+              <h2
+                style={{
+                  fontSize: "24px",
+                  fontWeight: "bold",
+                  color: "#111827",
+                  margin: 0,
+                }}
+              >
+                Available Vouchers ({voucherData.available})
+              </h2>
+              <button
+                onClick={() => setShowAddVoucher(true)}
+                style={{
+                  padding: "10px 20px",
+                  backgroundColor: "#667eea",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow =
+                    "0 4px 12px rgba(0,0,0,0.15)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                ➕ Add Voucher
+              </button>
+            </div>
           </div>
 
           <div style={{ padding: "24px" }}>
-            {voucherData.availableVouchers.length === 0 ? (
+            {Object.keys(productVoucherCounts).length === 0 ? (
               <div
                 style={{
                   textAlign: "center",
@@ -257,46 +323,75 @@ export default function AdminDashboard() {
                   No available vouchers
                 </div>
                 <div style={{ fontSize: "14px", marginTop: "8px" }}>
-                  Add more vouchers using the form above
+                  Click "Add Voucher" button above to add new vouchers
                 </div>
               </div>
             ) : (
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
-                  gap: "16px",
-                  maxHeight: "400px",
-                  overflowY: "auto",
-                  padding: "4px",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                  gap: "20px",
                 }}
               >
-                {voucherData.availableVouchers.map((voucher: any) => (
-                  <div
-                    key={voucher.id}
-                    style={{
-                      padding: "16px",
-                      backgroundColor: "#F0FDF4",
-                      border: "2px solid #86EFAC",
-                      borderRadius: "12px",
-                      textAlign: "center",
-                      transition: "transform 0.2s",
-                      cursor: "default",
-                    }}
-                  >
+                {Object.entries(productVoucherCounts).map(
+                  ([productName, count]) => (
                     <div
+                      key={productName}
                       style={{
-                        fontFamily: "monospace",
-                        fontWeight: "700",
-                        fontSize: "16px",
-                        color: "#065F46",
-                        letterSpacing: "1px",
+                        padding: "24px",
+                        backgroundColor: "#F0FDF4",
+                        border: "2px solid #86EFAC",
+                        borderRadius: "12px",
+                        transition: "all 0.2s",
+                        cursor: "default",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateY(-4px)";
+                        e.currentTarget.style.boxShadow =
+                          "0 8px 16px rgba(0,0,0,0.1)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.boxShadow = "none";
                       }}
                     >
-                      {voucher.code}
+                      <div
+                        style={{
+                          fontSize: "18px",
+                          fontWeight: "700",
+                          color: "#065F46",
+                          marginBottom: "12px",
+                          textTransform: "capitalize",
+                        }}
+                      >
+                        {productName}
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          fontSize: "32px",
+                          fontWeight: "bold",
+                          color: "#059669",
+                        }}
+                      >
+                        <span>{count}</span>
+                        <span
+                          style={{
+                            fontSize: "14px",
+                            color: "#6B7280",
+                            fontWeight: "500",
+                          }}
+                        >
+                          {count === 1 ? "voucher" : "vouchers"}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                )}
               </div>
             )}
           </div>
@@ -318,16 +413,47 @@ export default function AdminDashboard() {
               borderBottom: "1px solid #E5E7EB",
             }}
           >
-            <h2
+            <div
               style={{
-                fontSize: "24px",
-                fontWeight: "bold",
-                color: "#111827",
-                margin: 0,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "16px",
               }}
             >
-              Redeemed Vouchers ({voucherData.used})
-            </h2>
+              <h2
+                style={{
+                  fontSize: "24px",
+                  fontWeight: "bold",
+                  color: "#111827",
+                  margin: 0,
+                }}
+              >
+                Redeemed Vouchers ({voucherData.used})
+              </h2>
+              <input
+                type="text"
+                placeholder="Search by transaction ID, email, or voucher code..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: "14px",
+                  border: "2px solid #E5E7EB",
+                  borderRadius: "8px",
+                  outline: "none",
+                  minWidth: "300px",
+                  transition: "border-color 0.2s",
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = "#667eea";
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = "#E5E7EB";
+                }}
+              />
+            </div>
           </div>
 
           <div style={{ overflowX: "auto" }}>
@@ -348,7 +474,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {transactions.length === 0 ? (
+                {filteredTransactions.length === 0 ? (
                   <tr>
                     <td
                       colSpan={6}
@@ -359,18 +485,22 @@ export default function AdminDashboard() {
                       }}
                     >
                       <div style={{ fontSize: "48px", marginBottom: "16px" }}>
-                        📭
+                        {transactions.length === 0 ? "📭" : "🔍"}
                       </div>
                       <div style={{ fontSize: "18px", fontWeight: "500" }}>
-                        No transactions yet
+                        {transactions.length === 0
+                          ? "No transactions yet"
+                          : "No matching transactions"}
                       </div>
                       <div style={{ fontSize: "14px", marginTop: "8px" }}>
-                        Transactions will appear here once payments are made
+                        {transactions.length === 0
+                          ? "Transactions will appear here once payments are made"
+                          : "Try adjusting your search query"}
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  transactions.map((tx, index) => (
+                  paginatedTransactions.map((tx, index) => (
                     <tr
                       key={tx.id}
                       style={{
@@ -467,7 +597,234 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          {filteredTransactions.length > itemsPerPage && (
+            <div
+              style={{
+                padding: "24px",
+                borderTop: "1px solid #E5E7EB",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "16px",
+              }}
+            >
+              <div style={{ fontSize: "14px", color: "#6B7280" }}>
+                Showing {startIndex + 1} to{" "}
+                {Math.min(endIndex, filteredTransactions.length)} of{" "}
+                {filteredTransactions.length} results
+              </div>
+
+              <div
+                style={{ display: "flex", gap: "8px", alignItems: "center" }}
+              >
+                {/* Previous Button */}
+                <button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  style={{
+                    padding: "8px 16px",
+                    backgroundColor: currentPage === 1 ? "#F3F4F6" : "#667eea",
+                    color: currentPage === 1 ? "#9CA3AF" : "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentPage !== 1) {
+                      e.currentTarget.style.backgroundColor = "#5568d3";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentPage !== 1) {
+                      e.currentTarget.style.backgroundColor = "#667eea";
+                    }
+                  }}
+                >
+                  ← Previous
+                </button>
+
+                {/* Page Numbers */}
+                <div style={{ display: "flex", gap: "4px" }}>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => {
+                      // Show first page, last page, current page, and pages around current
+                      const showPage =
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1);
+
+                      const showEllipsisBefore =
+                        page === currentPage - 1 && currentPage > 3;
+                      const showEllipsisAfter =
+                        page === currentPage + 1 &&
+                        currentPage < totalPages - 2;
+
+                      if (
+                        !showPage &&
+                        !showEllipsisBefore &&
+                        !showEllipsisAfter
+                      )
+                        return null;
+
+                      if (showEllipsisBefore || showEllipsisAfter) {
+                        return (
+                          <span
+                            key={page}
+                            style={{
+                              padding: "8px 12px",
+                              color: "#9CA3AF",
+                              fontSize: "14px",
+                            }}
+                          >
+                            ...
+                          </span>
+                        );
+                      }
+
+                      return (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          style={{
+                            padding: "8px 12px",
+                            backgroundColor:
+                              currentPage === page ? "#667eea" : "#F3F4F6",
+                            color: currentPage === page ? "white" : "#374151",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                            fontWeight: currentPage === page ? "600" : "500",
+                            cursor: "pointer",
+                            minWidth: "40px",
+                            transition: "all 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (currentPage !== page) {
+                              e.currentTarget.style.backgroundColor = "#E5E7EB";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (currentPage !== page) {
+                              e.currentTarget.style.backgroundColor = "#F3F4F6";
+                            }
+                          }}
+                        >
+                          {page}
+                        </button>
+                      );
+                    }
+                  )}
+                </div>
+
+                {/* Next Button */}
+                <button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    padding: "8px 16px",
+                    backgroundColor:
+                      currentPage === totalPages ? "#F3F4F6" : "#667eea",
+                    color: currentPage === totalPages ? "#9CA3AF" : "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor:
+                      currentPage === totalPages ? "not-allowed" : "pointer",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentPage !== totalPages) {
+                      e.currentTarget.style.backgroundColor = "#5568d3";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentPage !== totalPages) {
+                      e.currentTarget.style.backgroundColor = "#667eea";
+                    }
+                  }}
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Add Voucher Modal */}
+        {showAddVoucher && (
+          <div
+            onClick={() => setShowAddVoucher(false)}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              zIndex: 50,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "20px",
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: "white",
+                borderRadius: "16px",
+                maxWidth: "800px",
+                width: "100%",
+                maxHeight: "90vh",
+                overflow: "auto",
+                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+                position: "relative",
+              }}
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setShowAddVoucher(false)}
+                style={{
+                  position: "absolute",
+                  top: "16px",
+                  right: "16px",
+                  padding: "8px",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  fontSize: "28px",
+                  cursor: "pointer",
+                  color: "#6B7280",
+                  lineHeight: 1,
+                  zIndex: 10,
+                  transition: "color 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "#EF4444";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "#6B7280";
+                }}
+              >
+                ×
+              </button>
+
+              {/* Add Voucher Form */}
+              <AddVoucherForm
+                onVoucherAdded={() => {
+                  fetchData();
+                  setShowAddVoucher(false);
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
