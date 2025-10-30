@@ -12,6 +12,22 @@ const corsHeaders = {
 // Minimum amount for QRIS payments (typically 10,000 IDR for Flip)
 const MIN_QRIS_AMOUNT = 1000;
 
+// Function to calculate expired date (current time + 15 minutes)
+function getExpiredDate(): string {
+  const now = new Date();
+  const expiredDate = new Date(now.getTime() + 15 * 60 * 1000); // Add 15 minutes
+
+  // Format as YYYY-MM-DD HH:mm:ss
+  const year = expiredDate.getFullYear();
+  const month = String(expiredDate.getMonth() + 1).padStart(2, '0');
+  const day = String(expiredDate.getDate()).padStart(2, '0');
+  const hours = String(expiredDate.getHours()).padStart(2, '0');
+  const minutes = String(expiredDate.getMinutes()).padStart(2, '0');
+  const seconds = String(expiredDate.getSeconds()).padStart(2, '0');
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const {
@@ -173,6 +189,7 @@ export async function POST(request: NextRequest) {
     const authHeader = `Basic ${Buffer.from(process.env.FLIP_SECRET_KEY + ":").toString("base64")}`;
 
     // Step 3: Create payment with pre-filled customer data
+    const expiredDate = getExpiredDate();
     const formData = new URLSearchParams();
     formData.append("step", "3");
     formData.append("title", title || "Voucher Purchase");
@@ -182,6 +199,7 @@ export async function POST(request: NextRequest) {
     formData.append("sender_email", email);
     formData.append("sender_bank", "qris");
     formData.append("sender_bank_type", "wallet_account");
+    formData.append("expired_date", expiredDate);
     formData.append(
       "redirect_url",
       `https://flip-callback.vercel.app/api/redirect-payment?transaction_id=${tempId}`
