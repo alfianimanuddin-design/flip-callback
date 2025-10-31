@@ -32,6 +32,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [showAddVoucher, setShowAddVoucher] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -100,11 +101,14 @@ export default function AdminDashboard() {
 
   const filteredTransactions = transactions.filter((tx) => {
     const query = searchQuery.toLowerCase();
-    return (
+    const matchesSearch =
       tx.transaction_id?.toLowerCase().includes(query) ||
       tx.email?.toLowerCase().includes(query) ||
-      tx.voucher_code?.toLowerCase().includes(query)
-    );
+      tx.voucher_code?.toLowerCase().includes(query);
+
+    const matchesStatus = statusFilter === "ALL" || tx.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
   });
 
   // Pagination calculations
@@ -116,10 +120,10 @@ export default function AdminDashboard() {
     endIndex
   );
 
-  // Reset to page 1 when search query changes
+  // Reset to page 1 when search query or status filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, statusFilter]);
 
   // Group available vouchers by product name
   const availableVouchersByProduct = voucherData.availableVouchers.reduce(
@@ -134,14 +138,11 @@ export default function AdminDashboard() {
   // Group used vouchers by product name
   const usedVouchersByProduct = voucherData.allVouchers
     .filter((voucher: any) => voucher.used)
-    .reduce(
-      (acc: Record<string, number>, voucher: any) => {
-        const productName = voucher.product_name || "Unknown Product";
-        acc[productName] = (acc[productName] || 0) + 1;
-        return acc;
-      },
-      {}
-    );
+    .reduce((acc: Record<string, number>, voucher: any) => {
+      const productName = voucher.product_name || "Unknown Product";
+      acc[productName] = (acc[productName] || 0) + 1;
+      return acc;
+    }, {});
 
   // Combine all product names (both available and used)
   const allProductNames = Array.from(
@@ -186,7 +187,7 @@ export default function AdminDashboard() {
     >
       <style jsx>{`
         input::placeholder {
-          color: #D1D5DB;
+          color: #d1d5db;
           opacity: 1;
         }
       `}</style>
@@ -385,7 +386,8 @@ export default function AdminDashboard() {
                   </tr>
                 ) : (
                   allProductNames.map((productName, index) => {
-                    const availableCount = availableVouchersByProduct[productName] || 0;
+                    const availableCount =
+                      availableVouchersByProduct[productName] || 0;
                     const totalUsed = usedVouchersByProduct[productName] || 0;
 
                     return (
@@ -413,7 +415,8 @@ export default function AdminDashboard() {
                             style={{
                               display: "inline-block",
                               padding: "6px 16px",
-                              backgroundColor: availableCount > 0 ? "#DCFCE7" : "#F3F4F6",
+                              backgroundColor:
+                                availableCount > 0 ? "#DCFCE7" : "#F3F4F6",
                               color: availableCount > 0 ? "#166534" : "#6B7280",
                               borderRadius: "9999px",
                               fontWeight: "600",
@@ -482,28 +485,76 @@ export default function AdminDashboard() {
               >
                 Redeemed Vouchers ({voucherData.used})
               </h2>
-              <input
-                type="text"
-                placeholder="Search by transaction ID, email, or voucher code..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  padding: "10px 16px",
-                  fontSize: "14px",
-                  border: "2px solid #E5E7EB",
-                  borderRadius: "8px",
-                  outline: "none",
-                  minWidth: "300px",
-                  transition: "border-color 0.2s",
-                  color: "#111827",
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "#667eea";
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = "#E5E7EB";
-                }}
-              />
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                <div style={{ position: "relative" }}>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    style={{
+                      padding: "10px 40px 10px 16px",
+                      fontSize: "14px",
+                      border: "2px solid #E5E7EB",
+                      borderRadius: "8px",
+                      outline: "none",
+                      backgroundColor: "white",
+                      color: "#111827",
+                      cursor: "pointer",
+                      transition: "border-color 0.2s",
+                      fontWeight: "500",
+                      appearance: "none",
+                      WebkitAppearance: "none",
+                      MozAppearance: "none",
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "#667eea";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "#E5E7EB";
+                    }}
+                  >
+                    <option value="ALL">All Status</option>
+                    <option value="SUCCESSFUL">Successful</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="EXPIRED">Expired</option>
+                    <option value="CANCELLED">Cancelled</option>
+                  </select>
+                  <div
+                    style={{
+                      position: "absolute",
+                      right: "12px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      pointerEvents: "none",
+                      color: "#6B7280",
+                      fontSize: "12px",
+                    }}
+                  >
+                    ▼
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search by transaction ID, email, or voucher code..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    padding: "10px 16px",
+                    fontSize: "14px",
+                    border: "2px solid #E5E7EB",
+                    borderRadius: "8px",
+                    outline: "none",
+                    minWidth: "300px",
+                    transition: "border-color 0.2s",
+                    color: "#111827",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "#667eea";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "#E5E7EB";
+                  }}
+                />
+              </div>
             </div>
           </div>
 
@@ -519,7 +570,7 @@ export default function AdminDashboard() {
                   <th style={tableHeaderStyle}>Email</th>
                   <th style={tableHeaderStyle}>Transaction ID</th>
                   <th style={tableHeaderStyle}>Payment Status</th>
-                  <th style={tableHeaderStyle}>Voucher Code</th>
+                  {/* <th style={tableHeaderStyle}>Voucher Code</th> */}
                   <th style={tableHeaderStyle}>Amount</th>
                   <th style={tableHeaderStyle}>Transaction Created</th>
                 </tr>
@@ -615,7 +666,7 @@ export default function AdminDashboard() {
                           );
                         })()}
                       </td>
-                      <td style={tableCellStyle}>
+                      {/* <td style={tableCellStyle}>
                         {tx.voucher_code ? (
                           <span
                             style={{
@@ -634,7 +685,7 @@ export default function AdminDashboard() {
                         ) : (
                           <span style={{ color: "#9CA3AF" }}>-</span>
                         )}
-                      </td>
+                      </td> */}
                       <td style={tableCellStyle}>
                         <span
                           style={{
