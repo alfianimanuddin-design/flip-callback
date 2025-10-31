@@ -697,10 +697,8 @@ async function sendVoucherEmail(
     }
     console.log("✅ RESEND_API_KEY is set");
 
-    const hasDiscount =
-      voucher.discounted_amount !== null &&
-      voucher.discounted_amount !== undefined;
-    const actualPrice = voucher.discounted_amount || voucher.amount || 0;
+    const hasDiscount = voucher.discounted_amount !== null;
+    const actualPrice = voucher.discounted_amount || voucher.amount;
 
     // Format dates
     const usedAt = formatIndonesianDate(voucher.used_at);
@@ -839,7 +837,7 @@ async function sendVoucherEmail(
                                                                   Nilai Voucher
                                                               </td>
                                                               <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
-                                                                  Rp${(voucher.amount || 0).toLocaleString("id-ID")}
+                                                                  Rp ${voucher.amount.toLocaleString("id-ID")}
                                                               </td>
                                                           </tr>
                                                           <tr>
@@ -847,7 +845,7 @@ async function sendVoucherEmail(
                                                                   Harga Voucher
                                                               </td>
                                                               <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
-                                                                  Rp${actualPrice.toLocaleString("id-ID")}
+                                                                  Rp ${actualPrice.toLocaleString("id-ID")}
                                                               </td>
                                                           </tr>
                                                           ${
