@@ -77,16 +77,19 @@ export default function AdminLogin() {
           maxWidth: "450px",
         }}
       >
-        <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <div
-            style={{
-              fontSize: "48px",
-              marginBottom: "16px",
-              filter: "drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1))",
-            }}
-          >
-            🔐
-          </div>
+        <div
+          style={{
+            textAlign: "center",
+            marginBottom: "32px",
+            justifyContent: "center",
+          }}
+        >
+          <img
+            src={
+              "https://framerusercontent.com/images/ZycDnV7cvhrZMV3Smrx4wZtWk.png"
+            }
+            style={{ width: "40px", height: "40px", margin: "0 auto 12px" }}
+          />
           <h1
             style={{
               fontSize: "28px",
@@ -95,7 +98,7 @@ export default function AdminLogin() {
               margin: "0 0 8px 0",
             }}
           >
-            Admin Login
+            Flip Jajan
           </h1>
           <p
             style={{
@@ -104,7 +107,7 @@ export default function AdminLogin() {
               margin: "0",
             }}
           >
-            Enter your credentials to access the dashboard
+            Enter your credentials to access the Flip Jajan dashboard
           </p>
         </div>
 

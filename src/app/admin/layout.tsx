@@ -12,6 +12,9 @@ export const metadata: Metadata = {
       follow: false,
     },
   },
+  icons: {
+    icon: "https://framerusercontent.com/images/ZycDnV7cvhrZMV3Smrx4wZtWk.png",
+  },
 };
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
