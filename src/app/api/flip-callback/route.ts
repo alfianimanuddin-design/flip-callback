@@ -825,7 +825,7 @@ async function sendVoucherEmail(
                                                           Harga Voucher
                                                       </td>
                                                       <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right;">
-                                                          ${actualPrice.toLocaleString("id-ID")}
+                                                          Rp ${amount.toLocaleString("id-ID")}
                                                       </td>
                                                   </tr>
                                                   ${
