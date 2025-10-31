@@ -733,7 +733,7 @@ async function sendVoucherEmail(
             <!-- Main Container -->
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #fde9b6; background-image: url('https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/email%20background.svg'); background-repeat: no-repeat; background-position: center top; background-size: 600px auto;">
                 <tr>
-                    <td align="center" style="padding: 0 20px 40px 20px;">
+                    <td align="center" style="padding: 0 12px 40px 12px;">
                         
                         <!-- Content Wrapper (max-width for desktop) -->
                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; background-color: transparent; position: relative;">
