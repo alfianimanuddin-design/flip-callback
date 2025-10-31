@@ -842,9 +842,6 @@ async function sendVoucherEmail(
                                                                   Rp${(voucher.amount || 0).toLocaleString("id-ID")}
                                                               </td>
                                                           </tr>
-                                                          ${
-                                                            hasDiscount
-                                                              ? `
                                                           <tr>
                                                               <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left; width: 50%;">
                                                                   Harga Voucher
@@ -853,6 +850,9 @@ async function sendVoucherEmail(
                                                                   Rp${(voucher.discounted_amount || 0).toLocaleString("id-ID")}
                                                               </td>
                                                           </tr>
+                                                          ${
+                                                            hasDiscount
+                                                              ? `
                                                           <tr>
                                                               <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left; width: 50%;">
                                                                   Diskon
