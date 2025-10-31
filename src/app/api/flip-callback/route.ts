@@ -855,9 +855,9 @@ async function sendVoucherEmail(
                                                               ? `
                                                           <tr>
                                                               <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left; width: 50%;">
-                                                                  Diskon
+                                                                  Potongan Harga
                                                               </td>
-                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
+                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #d32f2f; padding: 8px 0; text-align: right; width: 50%;">
                                                                   ${discountPercentage}%
                                                               </td>
                                                           </tr>
@@ -869,7 +869,7 @@ async function sendVoucherEmail(
                                                                   Berlaku Sampai
                                                               </td>
                                                               <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right;">
-                                                                  <span style="color: #e30a18;">31 May 2026</span>
+                                                                  <span style="color: #d32f2f;">30 Mei 2026</span>
                                                               </td>
                                                           </tr>
                                                       </table>
