@@ -1,0 +1,14 @@
+# Flip Jajan - Robots.txt
+User-agent: *
+Disallow: /admin/
+Disallow: /admin
+Disallow: /api/
+
+# Prevent indexing of admin and API routes
+User-agent: Googlebot
+Disallow: /admin/
+Disallow: /admin
+Disallow: /api/
+
+# Allow other pages (if needed)
+Allow: /
