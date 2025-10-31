@@ -588,6 +588,10 @@ export default function AdminDashboard() {
                               bg: "#FEE2E2",
                               color: "#991B1B",
                             },
+                            CANCELLED: {
+                              bg: "#FEE2E2",
+                              color: "#991B1B",
+                            },
                           };
                           const colors =
                             statusColors[
