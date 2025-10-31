@@ -821,7 +821,7 @@ async function sendVoucherEmail(
               <tr><td style="padding:16px 0">
                 <table width="100%"><tr>
                   <td style="font-size:16px;color:#6b5d45;font-weight:400;text-align:left">Berlaku Sampai</td>
-                  <td style="font-size:16px;color:#d32f2f;font-weight:700;text-align:right">${expiryDate}</td>
+                  <td style="font-size:16px;color:#d32f2f;font-weight:700;text-align:right">30 Mei 2026</td>
                 </tr></table>
               </td></tr>
             </table>

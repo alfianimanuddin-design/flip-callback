@@ -143,6 +143,14 @@ export default function AdminDashboard() {
       {}
     );
 
+  // Combine all product names (both available and used)
+  const allProductNames = Array.from(
+    new Set([
+      ...Object.keys(availableVouchersByProduct),
+      ...Object.keys(usedVouchersByProduct),
+    ])
+  ).sort();
+
   // Get unique product names from all vouchers for autocomplete
   const existingProductNames = Array.from(
     new Set(
@@ -354,7 +362,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {Object.keys(availableVouchersByProduct).length === 0 ? (
+                {allProductNames.length === 0 ? (
                   <tr>
                     <td
                       colSpan={3}
@@ -368,7 +376,7 @@ export default function AdminDashboard() {
                         📭
                       </div>
                       <div style={{ fontSize: "18px", fontWeight: "500" }}>
-                        No available vouchers
+                        No vouchers
                       </div>
                       <div style={{ fontSize: "14px", marginTop: "8px" }}>
                         Click "Add Voucher" button above to add new vouchers
@@ -376,64 +384,63 @@ export default function AdminDashboard() {
                     </td>
                   </tr>
                 ) : (
-                  Object.entries(availableVouchersByProduct).map(
-                    ([productName, count], index) => {
-                      const totalUsed = usedVouchersByProduct[productName] || 0;
+                  allProductNames.map((productName, index) => {
+                    const availableCount = availableVouchersByProduct[productName] || 0;
+                    const totalUsed = usedVouchersByProduct[productName] || 0;
 
-                      return (
-                        <tr
-                          key={productName}
-                          style={{
-                            borderBottom: "1px solid #F3F4F6",
-                            backgroundColor:
-                              index % 2 === 0 ? "white" : "#FAFAFA",
-                          }}
-                        >
-                          <td style={tableCellStyle}>
-                            <span
-                              style={{
-                                color: "#374151",
-                                fontWeight: "500",
-                                textTransform: "capitalize",
-                              }}
-                            >
-                              {productName}
-                            </span>
-                          </td>
-                          <td style={tableCellStyle}>
-                            <span
-                              style={{
-                                display: "inline-block",
-                                padding: "6px 16px",
-                                backgroundColor: "#DCFCE7",
-                                color: "#166534",
-                                borderRadius: "9999px",
-                                fontWeight: "600",
-                                fontSize: "14px",
-                              }}
-                            >
-                              {count} available
-                            </span>
-                          </td>
-                          <td style={tableCellStyle}>
-                            <span
-                              style={{
-                                display: "inline-block",
-                                padding: "6px 16px",
-                                backgroundColor: "#FEF3C7",
-                                color: "#92400E",
-                                borderRadius: "9999px",
-                                fontWeight: "600",
-                                fontSize: "14px",
-                              }}
-                            >
-                              {totalUsed} used
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    }
-                  )
+                    return (
+                      <tr
+                        key={productName}
+                        style={{
+                          borderBottom: "1px solid #F3F4F6",
+                          backgroundColor:
+                            index % 2 === 0 ? "white" : "#FAFAFA",
+                        }}
+                      >
+                        <td style={tableCellStyle}>
+                          <span
+                            style={{
+                              color: "#374151",
+                              fontWeight: "500",
+                              textTransform: "capitalize",
+                            }}
+                          >
+                            {productName}
+                          </span>
+                        </td>
+                        <td style={tableCellStyle}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              padding: "6px 16px",
+                              backgroundColor: availableCount > 0 ? "#DCFCE7" : "#F3F4F6",
+                              color: availableCount > 0 ? "#166534" : "#6B7280",
+                              borderRadius: "9999px",
+                              fontWeight: "600",
+                              fontSize: "14px",
+                            }}
+                          >
+                            {availableCount} available
+                          </span>
+                        </td>
+                        <td style={tableCellStyle}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              padding: "6px 16px",
+                              backgroundColor: "#FEF3C7",
+                              color: "#92400E",
+                              borderRadius: "9999px",
+                              fontWeight: "600",
+                              fontSize: "14px",
+                            }}
+                          >
+                            {totalUsed} used
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
