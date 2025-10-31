@@ -699,8 +699,16 @@ async function sendVoucherEmail(
 
     const hasDiscount =
       voucher.discounted_amount !== null &&
-      voucher.discounted_amount !== undefined;
+      voucher.discounted_amount !== undefined &&
+      voucher.discounted_amount > 0 &&
+      voucher.discounted_amount !== voucher.amount;
     const actualPrice = voucher.discounted_amount || voucher.amount || 0;
+
+    console.log("💰 ========== PRICE DEBUG ==========");
+    console.log("💰 voucher.amount:", voucher.amount);
+    console.log("💰 voucher.discounted_amount:", voucher.discounted_amount);
+    console.log("💰 hasDiscount:", hasDiscount);
+    console.log("💰 actualPrice:", actualPrice);
 
     // Format dates
     const usedAt = formatIndonesianDate(voucher.used_at);
@@ -711,6 +719,9 @@ async function sendVoucherEmail(
     const discountPercentage = hasDiscount
       ? Math.round((discountAmount / voucher.amount) * 100)
       : 0;
+
+    console.log("💰 discountAmount:", discountAmount);
+    console.log("💰 discountPercentage:", discountPercentage);
 
     console.log("📤 Calling Resend API...");
     const emailResult = await resend.emails.send({
@@ -848,13 +859,11 @@ async function sendVoucherEmail(
                                             <tr>
                                                 <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; line-height: 32px; vertical-align: top; width: 50%;">
                                                     Transaksi ID<br>
-                                                    Nilai Voucher<br>
-                                                    ${hasDiscount ? "Harga Voucher<br>Diskon<br>" : ""}Berlaku Sampai
+                                                    ${hasDiscount ? "Harga Normal<br>Harga Voucher<br>Diskon<br>" : "Nilai Voucher<br>"}Berlaku Sampai
                                                 </td>
                                                 <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; line-height: 32px; text-align: right; vertical-align: top; width: 50%;">
                                                     ${transactionId}<br>
-                                                    Rp${(voucher.amount || 0).toLocaleString("id-ID")}<br>
-                                                    ${hasDiscount ? `Rp${(voucher.discounted_amount || 0).toLocaleString("id-ID")}<br>${discountPercentage}%<br>` : ""}<span style="color: #e30a18;">31 May 2026</span>
+                                                    ${hasDiscount ? `<span style="text-decoration: line-through; color: #999;">Rp${(voucher.amount || 0).toLocaleString("id-ID")}</span><br>Rp${(voucher.discounted_amount || 0).toLocaleString("id-ID")}<br>${discountPercentage}%<br>` : `Rp${(voucher.amount || 0).toLocaleString("id-ID")}<br>`}<span style="color: #e30a18;">31 May 2026</span>
                                                 </td>
                                             </tr>
                                         </table>
