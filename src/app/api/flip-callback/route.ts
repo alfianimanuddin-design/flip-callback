@@ -804,30 +804,53 @@ async function sendVoucherEmail(
                                         <tr>
                                             <td style="padding: 15px;">
                                                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                                                    <tr>
-                                                        <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; line-height: 32px; vertical-align: top; width: 50%;">
-                                                            Transaksi ID<br>
-                                                            Nilai Voucher<br>
-                                                            Harga Voucher<br>
-                                                            Diskon<br>
-                                                            Berlaku Sampai
-                                                        </td>
-                                                        <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; line-height: 32px; text-align: right; vertical-align: top; width: 50%;">
-                                                            ${transactionId}<br>
-                                                            ${voucher.amount.toLocaleString("id-ID")}<br>
-                                                            ${actualPrice.toLocaleString("id-ID")}<br>
-                                                            ${
-                                                              hasDiscount
-                                                                ? `
-                                                                    ${discountPercentage}%<br>
-                                                                  `
-                                                                : ""
-                                                            }
-                                                            
-                                                            <span style="color: #e30a18;">31 May 2026</span>
-                                                        </td>
-                                                    </tr>
-                                                </table>
+                                                  <tr>
+                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left;">
+                                                          Transaksi ID
+                                                      </td>
+                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right;">
+                                                          ${transactionId}
+                                                      </td>
+                                                  </tr>
+                                                  <tr>
+                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left;">
+                                                          Nilai Voucher
+                                                      </td>
+                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right;">
+                                                          ${voucher.amount.toLocaleString("id-ID")}
+                                                      </td>
+                                                  </tr>
+                                                  <tr>
+                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left;">
+                                                          Harga Voucher
+                                                      </td>
+                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right;">
+                                                          ${actualPrice.toLocaleString("id-ID")}
+                                                      </td>
+                                                  </tr>
+                                                  ${
+                                                    hasDiscount
+                                                      ? `
+                                                  <tr>
+                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left;">
+                                                          Diskon
+                                                      </td>
+                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right;">
+                                                          ${discountPercentage}%
+                                                      </td>
+                                                  </tr>
+                                                  `
+                                                      : ""
+                                                  }
+                                                  <tr>
+                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left;">
+                                                          Berlaku Sampai
+                                                      </td>
+                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right;">
+                                                          <span style="color: #e30a18;">31 May 2026</span>
+                                                      </td>
+                                                  </tr>
+                                              </table>
                                             </td>
                                         </tr>
                                     </table>
