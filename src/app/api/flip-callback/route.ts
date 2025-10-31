@@ -729,16 +729,33 @@ async function sendVoucherEmail(
                 table {border-collapse: collapse;}
             </style>
             <![endif]-->
+            <style type="text/css">
+                /* Prevent color changes in dark mode */
+                @media (prefers-color-scheme: dark) {
+                    body, table, td, div, p, h1, h2, h3, h4 {
+                        color-scheme: light !important;
+                    }
+                }
+                
+                /* Force light mode colors */
+                [data-ogsc] body,
+                [data-ogsc] .body {
+                    background-color: #fde9b6 !important;
+                }
+            </style>
+            <meta name="color-scheme" content="light only">
+            <meta name="supported-color-schemes" content="light">
+
         </head>
-        <body style="margin: 0; padding: 0; background-color: #fde9b6; font-family: 'Proxima Nova', Arial, sans-serif;">
+        <body style="margin: 0; padding: 0; background-color: #fde9b6 !important; font-family: 'Proxima Nova', Arial, sans-serif;" bgcolor="#fde9b6">
             
             <!-- Main Container -->
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #fde9b6; background-image: url('https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/email%20background.svg'); background-repeat: no-repeat; background-position: center top; background-size: 600px auto;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#fde9b6" style="background-color: #fde9b6 !important; background-image: url('https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/email%20background.svg'); background-repeat: no-repeat; background-position: center top; background-size: 600px auto;">
                 <tr>
-                    <td align="center" style="padding: 0 0 12px 0;">
+                    <td align="center" style="padding: 0 0 40px 0;">
                         
                         <!-- Content Wrapper (max-width for desktop) -->
-                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; background-color: transparent; position: relative;">
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; background-color: transparent !important; position: relative;">
                             
                             <!-- Header with Logo -->
                             <tr>
@@ -805,54 +822,60 @@ async function sendVoucherEmail(
                                     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: white; border: 1px solid #dca82e; border-radius: 16px;">
                                         <tr>
                                             <td style="padding: 15px;">
-                                                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                                                  <tr>
-                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left;width: 50%;">
-                                                          Transaksi ID
-                                                      </td>
-                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
-                                                          ${transactionId}
-                                                      </td>
-                                                  </tr>
-                                                  <tr>
-                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left; width: 50%;">
-                                                          Nilai Voucher
-                                                      </td>
-                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
-                                                          Rp${(voucher.amount || 0).toLocaleString("id-ID")}
-                                                      </td>
-                                                  </tr>
-                                                  <tr>
-                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left; width: 50%;">
-                                                          Harga Voucher
-                                                      </td>
-                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
-                                                          Rp${actualPrice.toLocaleString("id-ID")}
-                                                      </td>
-                                                  </tr>
-                                                  ${
-                                                    hasDiscount
-                                                      ? `
-                                                  <tr>
-                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left; width: 50%;">
-                                                          Diskon
-                                                      </td>
-                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
-                                                          ${discountPercentage}%
-                                                      </td>
-                                                  </tr>
-                                                  `
-                                                      : ""
-                                                  }
-                                                  <tr>
-                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left;">
-                                                          Berlaku Sampai
-                                                      </td>
-                                                      <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right;">
-                                                          <span style="color: #e30a18;">31 May 2026</span>
-                                                      </td>
-                                                  </tr>
-                                              </table>
+                                                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: white; border: 1px solid #dca82e; border-radius: 16px;">
+                                                <tr>
+                                                    <td style="padding: 15px;">
+                                                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                                          <tr>
+                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left;width: 50%;">
+                                                                  Transaksi ID
+                                                              </td>
+                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
+                                                                  ${transactionId}
+                                                              </td>
+                                                          </tr>
+                                                          <tr>
+                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left; width: 50%;">
+                                                                  Nilai Voucher
+                                                              </td>
+                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
+                                                                  Rp${(voucher.amount || 0).toLocaleString("id-ID")}
+                                                              </td>
+                                                          </tr>
+                                                          ${
+                                                            hasDiscount
+                                                              ? `
+                                                          <tr>
+                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left; width: 50%;">
+                                                                  Harga Voucher
+                                                              </td>
+                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
+                                                                  Rp${(voucher.discounted_amount || 0).toLocaleString("id-ID")}
+                                                              </td>
+                                                          </tr>
+                                                          <tr>
+                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left; width: 50%;">
+                                                                  Diskon
+                                                              </td>
+                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
+                                                                  ${discountPercentage}%
+                                                              </td>
+                                                          </tr>
+                                                          `
+                                                              : ""
+                                                          }
+                                                          <tr>
+                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left;">
+                                                                  Berlaku Sampai
+                                                              </td>
+                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right;">
+                                                                  <span style="color: #e30a18;">31 May 2026</span>
+                                                              </td>
+                                                          </tr>
+                                                      </table>
+                                                    </td>
+                                                </tr>
+                                            </table>
                                             </td>
                                         </tr>
                                     </table>
