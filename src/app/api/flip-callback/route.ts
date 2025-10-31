@@ -716,273 +716,138 @@ async function sendVoucherEmail(
       to: email,
       subject: "Kode Voucher Kopi Kenangan",
       html: `
-      <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Flip Jajan Voucher</title>
-            <!--[if mso]>
-            <style type="text/css">
-                table {border-collapse: collapse;}
-            </style>
-            <![endif]-->
-            <style type="text/css">
-                /* Prevent color changes in dark mode */
-                @media (prefers-color-scheme: dark) {
-                    body, table, td, div, p, h1, h2, h3, h4 {
-                        color-scheme: light !important;
-                    }
-                }
-                
-                /* Force light mode colors */
-                [data-ogsc] body,
-                [data-ogsc] .body {
-                    background-color: #fde9b6 !important;
-                }
-            </style>
-            <meta name="color-scheme" content="light only">
-            <meta name="supported-color-schemes" content="light">
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @media only screen and (max-width: 600px) {
+      .email-container { width: 100% !important; }
+      .content-wrapper { padding: 20px !important; }
+      .voucher-code { font-size: 28px !important; }
+      .header-title { font-size: 32px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#F7F7F8;font-family:Arial,sans-serif;overflow-x:hidden">
+  <table width="100%" cellspacing="0" cellpadding="0" style="background-color:#F7F7F8;min-height:100vh">
+    <tr><td style="padding:40px 20px">
+      <table class="email-container" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;margin:0 auto;background-color:#f5e6c3;position:relative;overflow:hidden">
 
-        </head>
-        <body style="margin: 0; padding: 0; background-color: #fde9b6 !important; font-family: 'Proxima Nova', Arial, sans-serif;" bgcolor="#fde9b6">
-            
-            <!-- Main Container -->
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#fde9b6" style="background-color: #fde9b6 !important; background-image: url('https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/email%20background.svg'); background-repeat: no-repeat; background-position: center top; background-size: 600px auto;">
-                <tr>
-                    <td align="center" style="padding: 0 0 40px 0;">
-                        
-                        <!-- Content Wrapper (max-width for desktop) -->
-                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; background-color: transparent !important; position: relative;">
-                            
-                            <!-- Header with Logo -->
-                            <tr>
-                                <td style="background-color: white; border-radius: 0 0 24px 24px; padding: 16px;">
-                                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                                        <tr>
-                                            <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 15px; font-weight: bold; color: #543d07; text-align: left;">
-                                                Flip Jajan
-                                            </td>
-                                            <td align="right" style="width: 38px;">
-                                                <!-- Flip Logo -->
-                                                <img src="https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/flip-logo.png" alt="Flip Logo" width="38" height="38" style="display: block; border: 0;">
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </td>
-                            </tr>
-                            
-                            <!-- Spacing -->
-                            <tr><td height="24"></td></tr>
-                            
-                            <!-- Detail Voucher Title -->
-                            <tr>
-                                <td style="padding: 0 20px;">
-                                    <h2 style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: bold; color: #543d07; text-align: center;">
-                                        Detail Voucher
-                                    </h2>
-                                </td>
-                            </tr>
-                            
-                            <!-- Spacing -->
-                            <tr><td height="16"></td></tr>
-                            
-                            <!-- Product Name -->
-                            <tr>
-                                <td style="padding: 0 20px;">
-                                    <h1 style="margin: 0 0 16px 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 32px; font-weight: bold; color: #543d07; text-align: center; line-height: 40px;">
-                                        ${voucher.product_name}
-                                    </h1>
-                                </td>
-                            </tr>
-                            
-                            <!-- Voucher Code Button -->
-                            <tr>
-                                <td style="padding: 0 20px;">
-                                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: linear-gradient(to top, #a87a0d 8.874%, #423005 100%); border-radius: 23px; box-shadow: 0px 4px 19px 0px rgba(168,122,13,0.1);">
-                                        <tr>
-                                            <td style="padding: 15px; text-align: center;">
-                                                <p style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 34px; font-weight: bold; color: #fffffe; line-height: 30px;">
-                                                    ${voucher.code}
-                                                </p>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </td>
-                            </tr>
-                            
-                            <!-- Spacing -->
-                            <tr><td height="24"></td></tr>
-                            
-                            <!-- Voucher Details Box -->
-                            <tr>
-                                <td style="padding: 0 20px;">
-                                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: white; border: 1px solid #dca82e; border-radius: 16px;">
-                                        <tr>
-                                            <td style="padding: 15px;">
-                                                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: white; border: 1px solid #dca82e; border-radius: 16px;">
-                                                <tr>
-                                                    <td style="padding: 15px;">
-                                                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                                                          <tr>
-                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left;width: 50%;">
-                                                                  Transaksi ID
-                                                              </td>
-                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
-                                                                  ${transactionId}
-                                                              </td>
-                                                          </tr>
-                                                          <tr>
-                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left; width: 50%;">
-                                                                  Nilai Voucher
-                                                              </td>
-                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
-                                                                  Rp ${voucher.amount.toLocaleString("id-ID")}
-                                                              </td>
-                                                          </tr>
-                                                          <tr>
-                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left; width: 50%;">
-                                                                  Harga Voucher
-                                                              </td>
-                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
-                                                                  Rp ${actualPrice.toLocaleString("id-ID")}
-                                                              </td>
-                                                          </tr>
-                                                          ${
-                                                            hasDiscount
-                                                              ? `
-                                                          <tr>
-                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left; width: 50%;">
-                                                                  Potongan Harga
-                                                              </td>
-                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #d32f2f; padding: 8px 0; text-align: right; width: 50%;">
-                                                                  ${discountPercentage}%
-                                                              </td>
-                                                          </tr>
-                                                          `
-                                                              : ""
-                                                          }
-                                                          <tr>
-                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: left;">
-                                                                  Berlaku Sampai
-                                                              </td>
-                                                              <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right;">
-                                                                  <span style="color: #d32f2f;">30 Mei 2026</span>
-                                                              </td>
-                                                          </tr>
-                                                      </table>
-                                                    </td>
-                                                </tr>
-                                            </table>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </td>
-                            </tr>
-                            
-                            <!-- Spacing -->
-                            <tr><td height="20"></td></tr>
-                            
-                            <!-- Terms Text 1 -->
-                            <tr>
-                                <td style="padding: 0 20px;">
-                                    <p style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; color: #543d07; line-height: 22px;">
-                                        Berlaku di semua outlet <strong>kecuali</strong> Kenangan Heritage, Kenangan Signature, Chigo, Bandara atau Booth/Event
-                                    </p>
-                                </td>
-                            </tr>
-                            
-                            <!-- Spacing -->
-                            <tr><td height="16"></td></tr>
-                            
-                            <!-- Terms Text 2 -->
-                            <tr>
-                                <td style="padding: 0 20px;">
-                                    <p style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; color: #543d07; line-height: 22px;">
-                                        ⚠️ Voucher <strong>tidak berlaku</strong> untuk tambahan topping, ongkos kirim, atau shopping bag.
-                                    </p>
-                                </td>
-                            </tr>
-                            
-                            <!-- Spacing -->
-                            <tr><td height="24"></td></tr>
-                            
-                            <!-- How To Redeem Section -->
-                            <tr>
-                                <td style="padding: 0 20px;">
-                                    <h3 style="margin: 0 0 16px 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: bold; color: #222223; text-align: center; line-height: 24px;">
-                                        Cara Redeem Vouchernya
-                                    </h3>
-                                </td>
-                            </tr>
-                            
-                            <!-- Redeem Step 1 -->
-                            <tr>
-                                <td style="padding: 0 20px;">
-                                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: white; border-radius: 24px; margin-bottom: 16px;">
-                                        <tr>
-                                            <td style="padding: 16px;">
-                                                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                                                    <tr>
-                                                        <td style="width: 50px; vertical-align: top;">
-                                                            <!-- Step 1 Icon -->
-                                                            <img src="https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/step1.png" alt="Step 1" width="50" height="50" style="display: block; border-radius: 8px; border: 0;">
-                                                        </td>
-                                                        <td style="padding-left: 16px; vertical-align: top;">
-                                                            <h4 style="margin: 0 0 4px 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; font-weight: bold; color: #222223; line-height: 22px;">
-                                                                Redeem di Outlet
-                                                            </h4>
-                                                            <p style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; color: #747474; line-height: 22px;">
-                                                                Tunjukkan kode voucher yang sudah kamu ke kasir. Kamu bisa cek kode vouchermu lewat email atau galeri.
-                                                            </p>
-                                                        </td>
-                                                    </tr>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </td>
-                            </tr>
-                            
-                            <!-- Redeem Step 2 -->
-                            <tr>
-                                <td style="padding: 0 20px;">
-                                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: white; border-radius: 24px;">
-                                        <tr>
-                                            <td style="padding: 16px;">
-                                                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                                                    <tr>
-                                                        <td style="width: 50px; vertical-align: top;">
-                                                            <!-- Step 2 Icon -->
-                                                            <img src="https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/step%202.png" alt="Step 2" width="50" height="50" style="display: block; border-radius: 8px; border: 0;">
-                                                        </td>
-                                                        <td style="padding-left: 16px; vertical-align: top;">
-                                                            <h4 style="margin: 0 0 4px 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; font-weight: bold; color: #222223; line-height: 22px;">
-                                                                Redeem di Aplikasi Kopi Kenangan
-                                                            </h4>
-                                                            <p style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; color: #747474; line-height: 22px;">
-                                                                Masukkan kode vouchernya via menu VIP lalu lanjutkan seperti biasa. Transaksi dengan voucher ini tidak mendapatkan Kenangan Points.
-                                                            </p>
-                                                        </td>
-                                                    </tr>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </td>
-                            </tr>
-                            
-                            <!-- Bottom Spacing -->
-                            <tr><td height="40"></td></tr>
-                            
-                        </table>
-                        
-                    </td>
-                </tr>
+        <!-- Header with decorative assets -->
+        <tr><td class="content-wrapper" style="padding:0 20px 40px;text-align:center;position:relative">
+
+          <!-- Sunburst background - top right -->
+          <div style="position:absolute;top:-650px;right:-700px;z-index:1;opacity:0.7">
+            <img src="https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/sunburst.png" alt="" width="1400" height="1400" style="display:block" />
+          </div>
+
+
+
+          <div style="position:relative;z-index:5">
+
+          <!-- Top Header with Flip Jajan and Logo -->
+          <div style="margin-bottom:40px;padding:20px 30px;border-radius:0 0 30px 30px;background-color:#FDEFC9">
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td style="text-align:left;vertical-align:middle">
+                  <h2 style="margin:0;font-size:22px;font-weight:700;color:#543d07">Flip Jajan</h2>
+                </td>
+                <td style="text-align:right;vertical-align:middle">
+                  <img src="https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/flip-logo.png" alt="Flip" width="50" height="50" style="display:block;margin-left:auto" />
+                </td>
+              </tr>
             </table>
-            
-        </body>
-        </html>
+          </div>
+
+          <h1 class="header-title" style="margin:0 0 40px;font-size:48px;font-weight:700;color:#543d07;line-height:1.2">
+            Detail Voucher
+          </h1>
+
+          <p style="margin:0 0 30px;font-size:18px;font-weight:600;color:#543d07">
+            Kode Voucher ${voucher.product_name}
+          </p>
+
+          <!-- Voucher Code Box -->
+          <div style="background:linear-gradient(180deg, #423005 0%, #A87A0D 100%);border-radius:50px;padding:25px 40px;margin-bottom:30px;box-shadow:0 8px 24px rgba(84,61,7,0.3)">
+            <span class="voucher-code" style="font-size:36px;font-weight:700;color:#ffffff;letter-spacing:3px">
+              ${voucher.code}
+            </span>
+          </div>
+
+          <p style="margin:0 0 50px;font-size:16px;color:#6b5d45;line-height:1.6">
+            Tunjukan kode voucher saat pembayaran di kasir atau masukkan kode di Aplikasi Kopi Kenangan.
+          </p>
+
+          <!-- Details Box -->
+          <div style="background:#ffffff;border-radius:30px;padding:16px 24px;margin-bottom:40px;box-shadow:0 4px 16px rgba(84,61,7,0.15)">
+
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr><td style="padding:16px 0;border-bottom:1px solid #f0f0f0">
+                <table width="100%"><tr>
+                  <td style="font-size:16px;color:#6b5d45;font-weight:400;text-align:left">Transaksi ID</td>
+                  <td style="font-size:16px;color:#543d07;font-weight:700;text-align:right">${transactionId}</td>
+                </tr></table>
+              </td></tr>
+
+              <tr><td style="padding:16px 0;border-bottom:1px solid #f0f0f0">
+                <table width="100%"><tr>
+                  <td style="font-size:16px;color:#6b5d45;font-weight:400;text-align:left">Nilai Voucher</td>
+                  <td style="font-size:16px;color:#543d07;font-weight:700;text-align:right">Rp ${voucher.amount.toLocaleString("id-ID")}</td>
+                </tr></table>
+              </td></tr>
+
+              <tr><td style="padding:16px 0;border-bottom:1px solid #f0f0f0">
+                <table width="100%"><tr>
+                  <td style="font-size:16px;color:#6b5d45;font-weight:400;text-align:left">Harga Voucher</td>
+                  <td style="font-size:16px;color:#543d07;font-weight:700;text-align:right">Rp ${actualPrice.toLocaleString("id-ID")}</td>
+                </tr></table>
+              </td></tr>
+
+              ${
+                hasDiscount
+                  ? `
+              <tr><td style="padding:16px 0;border-bottom:1px solid #f0f0f0">
+                <table width="100%"><tr>
+                  <td style="font-size:16px;color:#6b5d45;font-weight:400;text-align:left">Potongan Harga</td>
+                  <td style="font-size:16px;color:#d32f2f;font-weight:700;text-align:right">${discountPercentage}%</td>
+                </tr></table>
+              </td></tr>
+              `
+                  : ""
+              }
+
+              <tr><td style="padding:16px 0">
+                <table width="100%"><tr>
+                  <td style="font-size:16px;color:#6b5d45;font-weight:400;text-align:left">Berlaku Sampai</td>
+                  <td style="font-size:16px;color:#d32f2f;font-weight:700;text-align:right">${expiryDate}</td>
+                </tr></table>
+              </td></tr>
+            </table>
+
+          </div>
+
+          <!-- Terms -->
+          <div style="margin-bottom:30px">
+            <p style="margin:0 0 20px;font-size:15px;color:#6b5d45;line-height:1.8">
+              Voucher tidak dapat digunakan di aplikasi Gofood, Grabfood, atau aplikasi delivery online lainnya.
+            </p>
+
+            <p style="margin:0;font-size:15px;color:#6b5d45;line-height:1.8">
+              Voucher dapat digunakan untuk semua produk di outlet offline Kopi Kenangan kecuali tumbler, tanpa minimum pembelian, di outlet manapun di Indonesia, kecuali outlet yang berlokasi di Bandara.
+            </p>
+          </div>
+
+          </div><!-- Close position relative wrapper -->
+
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
       `,
     });
 
