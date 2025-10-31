@@ -138,7 +138,6 @@ export async function POST(request: NextRequest) {
               .from("vouchers")
               .update({
                 used: true,
-                used_at: now.toISOString(),
                 expiry_date: expiryDate.toISOString(),
                 used_by: sender_email,
               })
@@ -181,7 +180,7 @@ export async function POST(request: NextRequest) {
             await supabase
               .from("vouchers")
               .select(
-                "code, product_name, amount, discounted_amount, used_at, expiry_date"
+                "code, product_name, amount, discounted_amount, expiry_date"
               )
               .eq("code", existingTx.voucher_code)
               .single();
@@ -209,7 +208,6 @@ export async function POST(request: NextRequest) {
               product_name: existingTx.product_name || "Kopi Kenangan",
               amount: existingTx.amount || amount,
               discounted_amount: null,
-              used_at: new Date().toISOString(),
               expiry_date: new Date(
                 Date.now() + 30 * 24 * 60 * 60 * 1000
               ).toISOString(),
@@ -347,7 +345,6 @@ export async function POST(request: NextRequest) {
           await supabase
             .from("vouchers")
             .update({
-              used_at: now.toISOString(),
               expiry_date: expiryDate.toISOString(),
             })
             .eq("code", existingTx.voucher_code);
@@ -530,7 +527,6 @@ export async function POST(request: NextRequest) {
       .from("vouchers")
       .update({
         used: true,
-        used_at: now.toISOString(),
         expiry_date: expiryDate.toISOString(),
         used_by: sender_email,
       })
@@ -570,7 +566,6 @@ export async function POST(request: NextRequest) {
           .from("vouchers")
           .update({
             used: false,
-            used_at: null,
             expiry_date: null,
             used_by: null,
           })
@@ -603,7 +598,6 @@ export async function POST(request: NextRequest) {
           .from("vouchers")
           .update({
             used: false,
-            used_at: null,
             expiry_date: null,
             used_by: null,
           })
@@ -625,7 +619,6 @@ export async function POST(request: NextRequest) {
     // Add voucher dates to the voucher object for email
     const voucherWithDates = {
       ...voucher,
-      used_at: now.toISOString(),
       expiry_date: expiryDate.toISOString(),
     };
 
@@ -711,7 +704,6 @@ async function sendVoucherEmail(
     console.log("💰 actualPrice:", actualPrice);
 
     // Format dates
-    const usedAt = formatIndonesianDate(voucher.used_at);
     const expiryDate = formatIndonesianDate(voucher.expiry_date);
 
     // Calculate discount
@@ -880,7 +872,7 @@ async function sendVoucherEmail(
                                                                   Harga Voucher
                                                               </td>
                                                               <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; padding: 8px 0; text-align: right; width: 50%;">
-                                                                  Rp ${actualPrice.toLocaleString("id-ID")}
+                                                                  Rp ${(voucher.discounted_amount || voucher.amount).toLocaleString("id-ID")}
                                                               </td>
                                                           </tr>
                                                           ${
