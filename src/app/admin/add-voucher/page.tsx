@@ -13,8 +13,10 @@ interface VoucherRow {
 
 export default function AddVoucherForm({
   onVoucherAdded,
+  existingProductNames = [],
 }: {
   onVoucherAdded?: () => void;
+  existingProductNames?: string[];
 }) {
   const [code, setCode] = useState("");
   const [productName, setProductName] = useState("");
@@ -268,7 +270,6 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
         boxShadow:
           "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
         overflow: "hidden",
-        marginBottom: "40px",
       }}
     >
       <div
@@ -418,10 +419,7 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                   >
                     <li>
                       <strong>Required:</strong> code, product_name, amount,
-                      discounted_amount
-                    </li>
-                    <li>
-                      <strong>Optional:</strong> image (URL)
+                      discounted_amount, image (URL)
                     </li>
                     <li>Use comma (,) as separator</li>
                   </ul>
@@ -453,7 +451,7 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                           display: "block",
                           fontSize: "14px",
                           fontWeight: "600",
-                          color: "#374151",
+                          color: "#111827",
                           marginBottom: "8px",
                         }}
                       >
@@ -471,6 +469,7 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                           borderRadius: "8px",
                           fontSize: "14px",
                           cursor: "pointer",
+                          color: "#111827",
                         }}
                       />
                     </div>
@@ -483,7 +482,7 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                             display: "block",
                             fontSize: "14px",
                             fontWeight: "600",
-                            color: "#374151",
+                            color: "#111827",
                             marginBottom: "8px",
                           }}
                         >
@@ -505,6 +504,7 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                                     textAlign: "left",
                                     fontWeight: "600",
                                     borderBottom: "2px solid #E5E7EB",
+                                    color: "#111827",
                                   }}
                                 >
                                   Code
@@ -515,6 +515,7 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                                     textAlign: "left",
                                     fontWeight: "600",
                                     borderBottom: "2px solid #E5E7EB",
+                                    color: "#111827",
                                   }}
                                 >
                                   Product
@@ -525,6 +526,7 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                                     textAlign: "right",
                                     fontWeight: "600",
                                     borderBottom: "2px solid #E5E7EB",
+                                    color: "#111827",
                                   }}
                                 >
                                   Amount
@@ -535,6 +537,7 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                                     textAlign: "right",
                                     fontWeight: "600",
                                     borderBottom: "2px solid #E5E7EB",
+                                    color: "#111827",
                                   }}
                                 >
                                   Discounted
@@ -553,17 +556,24 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                                     style={{
                                       padding: "10px",
                                       fontFamily: "monospace",
+                                      color: "#111827",
                                     }}
                                   >
                                     {voucher.code}
                                   </td>
-                                  <td style={{ padding: "10px" }}>
+                                  <td
+                                    style={{
+                                      padding: "10px",
+                                      color: "#111827",
+                                    }}
+                                  >
                                     {voucher.product_name}
                                   </td>
                                   <td
                                     style={{
                                       padding: "10px",
                                       textAlign: "right",
+                                      color: "#111827",
                                     }}
                                   >
                                     Rp {voucher.amount.toLocaleString()}
@@ -572,6 +582,7 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                                     style={{
                                       padding: "10px",
                                       textAlign: "right",
+                                      color: "#111827",
                                     }}
                                   >
                                     Rp{" "}
@@ -625,7 +636,7 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                         style={{
                           padding: "12px 24px",
                           backgroundColor: "#F3F4F6",
-                          color: "#374151",
+                          color: "#111827",
                           border: "none",
                           borderRadius: "8px",
                           fontSize: "14px",
@@ -666,6 +677,12 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
 
       {/* Original Single Voucher Form */}
       <div style={{ padding: "24px" }}>
+        <style jsx>{`
+          input::placeholder {
+            color: #D1D5DB;
+            opacity: 1;
+          }
+        `}</style>
         <form onSubmit={handleSubmit}>
           <div style={{ display: "grid", gap: "20px" }}>
             {/* Voucher Code */}
@@ -675,7 +692,7 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                   display: "block",
                   fontSize: "14px",
                   fontWeight: "600",
-                  color: "#374151",
+                  color: "#111827",
                   marginBottom: "8px",
                 }}
               >
@@ -696,6 +713,7 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                     fontSize: "14px",
                     fontFamily: "monospace",
                     textTransform: "uppercase",
+                    color: "#111827",
                   }}
                 />
                 <button
@@ -725,7 +743,7 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                   display: "block",
                   fontSize: "14px",
                   fontWeight: "600",
-                  color: "#374151",
+                  color: "#111827",
                   marginBottom: "8px",
                 }}
               >
@@ -735,78 +753,108 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                 type="text"
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
-                placeholder="kopi hitam, teh, etc."
+                placeholder="Masukkan Nama Produk"
                 required
+                list="product-suggestions"
                 style={{
                   width: "100%",
                   padding: "12px 16px",
                   border: "2px solid #E5E7EB",
                   borderRadius: "8px",
                   fontSize: "14px",
+                  color: "#111827",
                 }}
               />
+              <datalist id="product-suggestions">
+                {existingProductNames.map((name, index) => (
+                  <option key={index} value={name} />
+                ))}
+              </datalist>
+              {existingProductNames.length > 0 && (
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "#4B5563",
+                    marginTop: "4px",
+                  }}
+                >
+                  💡 Start typing to see existing products (
+                  {existingProductNames.length} available)
+                </div>
+              )}
             </div>
 
-            {/* Amount */}
-            <div>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  marginBottom: "8px",
-                }}
-              >
-                Amount (Rp) *
-              </label>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="10000"
-                required
-                min="0"
-                step="0.01"
-                style={{
-                  width: "100%",
-                  padding: "12px 16px",
-                  border: "2px solid #E5E7EB",
-                  borderRadius: "8px",
-                  fontSize: "14px",
-                }}
-              />
-            </div>
+            {/* Amount & Discounted Amount */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "16px",
+              }}
+            >
+              {/* Amount */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#111827",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Amount (Rp) *
+                </label>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="10000"
+                  required
+                  min="0"
+                  step="0.01"
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    border: "2px solid #E5E7EB",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    color: "#111827",
+                  }}
+                />
+              </div>
 
-            {/* Discounted Amount */}
-            <div>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  marginBottom: "8px",
-                }}
-              >
-                Discounted Amount (Rp) *
-              </label>
-              <input
-                type="number"
-                value={discountedAmount}
-                onChange={(e) => setDiscountedAmount(e.target.value)}
-                placeholder="8000"
-                required
-                min="0"
-                step="0.01"
-                style={{
-                  width: "100%",
-                  padding: "12px 16px",
-                  border: "2px solid #E5E7EB",
-                  borderRadius: "8px",
-                  fontSize: "14px",
-                }}
-              />
+              {/* Discounted Amount */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#111827",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Discounted Amount (Rp) *
+                </label>
+                <input
+                  type="number"
+                  value={discountedAmount}
+                  onChange={(e) => setDiscountedAmount(e.target.value)}
+                  placeholder="8000"
+                  required
+                  min="0"
+                  step="0.01"
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    border: "2px solid #E5E7EB",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    color: "#111827",
+                  }}
+                />
+              </div>
             </div>
 
             {/* Image URL */}
@@ -816,11 +864,11 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                   display: "block",
                   fontSize: "14px",
                   fontWeight: "600",
-                  color: "#374151",
+                  color: "#111827",
                   marginBottom: "8px",
                 }}
               >
-                Image URL (Optional)
+                Image URL *
               </label>
               <input
                 type="url"
@@ -833,6 +881,7 @@ VOUCHER003,jus jeruk,15000,12000,https://example.com/image.jpg`;
                   border: "2px solid #E5E7EB",
                   borderRadius: "8px",
                   fontSize: "14px",
+                  color: "#111827",
                 }}
               />
             </div>

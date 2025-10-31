@@ -60,6 +60,12 @@ export default function AdminLogin() {
         padding: "20px",
       }}
     >
+      <style jsx>{`
+        input::placeholder {
+          color: #d1d5db;
+          opacity: 1;
+        }
+      `}</style>
       <div
         style={{
           backgroundColor: "white",
@@ -72,30 +78,44 @@ export default function AdminLogin() {
         }}
       >
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <div style={{ fontSize: "48px", marginBottom: "16px" }}>🔐</div>
+          <div
+            style={{
+              fontSize: "48px",
+              marginBottom: "16px",
+              filter: "drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1))",
+            }}
+          >
+            🔐
+          </div>
           <h1
             style={{
               fontSize: "28px",
               fontWeight: "bold",
               color: "#111827",
-              marginBottom: "8px",
+              margin: "0 0 8px 0",
             }}
           >
             Admin Login
           </h1>
-          <p style={{ color: "#6B7280", fontSize: "14px" }}>
+          <p
+            style={{
+              color: "#6B7280",
+              fontSize: "14px",
+              margin: "0",
+            }}
+          >
             Enter your credentials to access the dashboard
           </p>
         </div>
 
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: "20px" }}>
+        <form onSubmit={handleLogin} style={{ display: "grid", gap: "20px" }}>
+          <div>
             <label
               style={{
                 display: "block",
                 fontSize: "14px",
                 fontWeight: "600",
-                color: "#374151",
+                color: "#111827",
                 marginBottom: "8px",
               }}
             >
@@ -106,6 +126,7 @@ export default function AdminLogin() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
               placeholder="admin@example.com"
               style={{
                 width: "100%",
@@ -114,20 +135,20 @@ export default function AdminLogin() {
                 borderRadius: "8px",
                 fontSize: "16px",
                 outline: "none",
-                transition: "border-color 0.2s",
+                transition: "all 0.2s ease",
+                color: "#111827",
+                boxSizing: "border-box",
               }}
-              onFocus={(e) => (e.target.style.borderColor = "#667eea")}
-              onBlur={(e) => (e.target.style.borderColor = "#E5E7EB")}
             />
           </div>
 
-          <div style={{ marginBottom: "24px" }}>
+          <div>
             <label
               style={{
                 display: "block",
                 fontSize: "14px",
                 fontWeight: "600",
-                color: "#374151",
+                color: "#111827",
                 marginBottom: "8px",
               }}
             >
@@ -138,6 +159,7 @@ export default function AdminLogin() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
               placeholder="••••••••"
               style={{
                 width: "100%",
@@ -146,10 +168,10 @@ export default function AdminLogin() {
                 borderRadius: "8px",
                 fontSize: "16px",
                 outline: "none",
-                transition: "border-color 0.2s",
+                transition: "all 0.2s ease",
+                color: "#111827",
+                boxSizing: "border-box",
               }}
-              onFocus={(e) => (e.target.style.borderColor = "#667eea")}
-              onBlur={(e) => (e.target.style.borderColor = "#E5E7EB")}
             />
           </div>
 
@@ -160,12 +182,16 @@ export default function AdminLogin() {
                 border: "1px solid #FCA5A5",
                 borderRadius: "8px",
                 padding: "12px 16px",
-                marginBottom: "20px",
                 color: "#991B1B",
                 fontSize: "14px",
+                fontWeight: "500",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
               }}
             >
-              {error}
+              <span>⚠️</span>
+              <span>{error}</span>
             </div>
           )}
 
@@ -182,16 +208,36 @@ export default function AdminLogin() {
               border: "none",
               borderRadius: "8px",
               cursor: loading ? "not-allowed" : "pointer",
-              transition: "background-color 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              if (!loading) e.currentTarget.style.backgroundColor = "#5568d3";
-            }}
-            onMouseLeave={(e) => {
-              if (!loading) e.currentTarget.style.backgroundColor = "#667eea";
+              transition: "all 0.2s ease",
+              boxShadow: loading
+                ? "none"
+                : "0 1px 3px rgba(102, 126, 234, 0.3)",
             }}
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? (
+              <span
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                }}
+              >
+                <span
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    border: "2px solid white",
+                    borderTopColor: "transparent",
+                    borderRadius: "50%",
+                    animation: "spin 0.6s linear infinite",
+                  }}
+                />
+                Signing in...
+              </span>
+            ) : (
+              "Sign In"
+            )}
           </button>
         </form>
       </div>

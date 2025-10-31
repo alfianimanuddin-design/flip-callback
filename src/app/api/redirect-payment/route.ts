@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       console.error("❌ Missing transaction_id parameter");
       return NextResponse.redirect(
         new URL(
-          "https://functional-method-830499.framer.app/error?message=missing_transaction_id",
+          "https://jajan.flip.id/error?message=missing_transaction_id",
           request.url
         )
       );
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       console.error("❌ Transaction not found after waiting");
       return NextResponse.redirect(
         new URL(
-          `https://functional-method-830499.framer.app/processing?transaction_id=${transaction_id}`,
+          `https://jajan.flip.id/processing?transaction_id=${transaction_id}`,
           request.url
         )
       );
@@ -63,10 +63,7 @@ export async function GET(request: NextRequest) {
     console.log("✅ Transaction found:", transaction.id);
 
     // Redirect to success page
-    const successUrl = new URL(
-      "https://functional-method-830499.framer.app/success",
-      request.url
-    );
+    const successUrl = new URL("https://jajan.flip.id/success", request.url);
     successUrl.searchParams.set("bill_link", transaction.transaction_id);
     successUrl.searchParams.set("voucher_code", transaction.voucher_code);
 
@@ -74,10 +71,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("❌ Redirect error:", error);
     return NextResponse.redirect(
-      new URL(
-        "https://functional-method-830499.framer.app/error?message=redirect_error",
-        request.url
-      )
+      new URL("https://jajan.flip.id/error?message=redirect_error", request.url)
     );
   }
 }

@@ -17,6 +17,7 @@ interface VoucherData {
   used: number;
   available: number;
   availableVouchers: Voucher[];
+  allVouchers: Voucher[];
 }
 
 export default function AdminDashboard() {
@@ -26,6 +27,7 @@ export default function AdminDashboard() {
     used: 0,
     available: 0,
     availableVouchers: [],
+    allVouchers: [],
   });
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
@@ -81,6 +83,7 @@ export default function AdminDashboard() {
         used: used?.length || 0,
         available: available?.length || 0,
         availableVouchers: available || [],
+        allVouchers: all || [],
       });
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -118,8 +121,8 @@ export default function AdminDashboard() {
     setCurrentPage(1);
   }, [searchQuery]);
 
-  // Group vouchers by product name
-  const productVoucherCounts = voucherData.availableVouchers.reduce(
+  // Group available vouchers by product name
+  const availableVouchersByProduct = voucherData.availableVouchers.reduce(
     (acc: Record<string, number>, voucher: any) => {
       const productName = voucher.product_name || "Unknown Product";
       acc[productName] = (acc[productName] || 0) + 1;
@@ -127,6 +130,27 @@ export default function AdminDashboard() {
     },
     {}
   );
+
+  // Group used vouchers by product name
+  const usedVouchersByProduct = voucherData.allVouchers
+    .filter((voucher: any) => voucher.used)
+    .reduce(
+      (acc: Record<string, number>, voucher: any) => {
+        const productName = voucher.product_name || "Unknown Product";
+        acc[productName] = (acc[productName] || 0) + 1;
+        return acc;
+      },
+      {}
+    );
+
+  // Get unique product names from all vouchers for autocomplete
+  const existingProductNames = Array.from(
+    new Set(
+      voucherData.allVouchers
+        .map((voucher: any) => voucher.product_name)
+        .filter((name) => name && name !== "Unknown Product")
+    )
+  ).sort();
 
   if (loading) {
     return (
@@ -152,6 +176,12 @@ export default function AdminDashboard() {
         padding: "40px 20px",
       }}
     >
+      <style jsx>{`
+        input::placeholder {
+          color: #D1D5DB;
+          opacity: 1;
+        }
+      `}</style>
       <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
         {/* Header */}
         <div
@@ -309,91 +339,104 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div style={{ padding: "24px" }}>
-            {Object.keys(productVoucherCounts).length === 0 ? (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "60px 20px",
-                  color: "#9CA3AF",
-                }}
-              >
-                <div style={{ fontSize: "48px", marginBottom: "16px" }}>📭</div>
-                <div style={{ fontSize: "18px", fontWeight: "500" }}>
-                  No available vouchers
-                </div>
-                <div style={{ fontSize: "14px", marginTop: "8px" }}>
-                  Click "Add Voucher" button above to add new vouchers
-                </div>
-              </div>
-            ) : (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                  gap: "20px",
-                }}
-              >
-                {Object.entries(productVoucherCounts).map(
-                  ([productName, count]) => (
-                    <div
-                      key={productName}
+          <div style={{ overflowX: "auto" }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+              }}
+            >
+              <thead>
+                <tr style={{ backgroundColor: "#F9FAFB" }}>
+                  <th style={tableHeaderStyle}>Product Name</th>
+                  <th style={tableHeaderStyle}>Total Available</th>
+                  <th style={tableHeaderStyle}>Total Used</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.keys(availableVouchersByProduct).length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={3}
                       style={{
-                        padding: "24px",
-                        backgroundColor: "#F0FDF4",
-                        border: "2px solid #86EFAC",
-                        borderRadius: "12px",
-                        transition: "all 0.2s",
-                        cursor: "default",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = "translateY(-4px)";
-                        e.currentTarget.style.boxShadow =
-                          "0 8px 16px rgba(0,0,0,0.1)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = "none";
+                        textAlign: "center",
+                        padding: "60px 20px",
+                        color: "#9CA3AF",
                       }}
                     >
-                      <div
-                        style={{
-                          fontSize: "18px",
-                          fontWeight: "700",
-                          color: "#065F46",
-                          marginBottom: "12px",
-                          textTransform: "capitalize",
-                        }}
-                      >
-                        {productName}
+                      <div style={{ fontSize: "48px", marginBottom: "16px" }}>
+                        📭
                       </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "8px",
-                          fontSize: "32px",
-                          fontWeight: "bold",
-                          color: "#059669",
-                        }}
-                      >
-                        <span>{count}</span>
-                        <span
+                      <div style={{ fontSize: "18px", fontWeight: "500" }}>
+                        No available vouchers
+                      </div>
+                      <div style={{ fontSize: "14px", marginTop: "8px" }}>
+                        Click "Add Voucher" button above to add new vouchers
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  Object.entries(availableVouchersByProduct).map(
+                    ([productName, count], index) => {
+                      const totalUsed = usedVouchersByProduct[productName] || 0;
+
+                      return (
+                        <tr
+                          key={productName}
                           style={{
-                            fontSize: "14px",
-                            color: "#6B7280",
-                            fontWeight: "500",
+                            borderBottom: "1px solid #F3F4F6",
+                            backgroundColor:
+                              index % 2 === 0 ? "white" : "#FAFAFA",
                           }}
                         >
-                          {count === 1 ? "voucher" : "vouchers"}
-                        </span>
-                      </div>
-                    </div>
+                          <td style={tableCellStyle}>
+                            <span
+                              style={{
+                                color: "#374151",
+                                fontWeight: "500",
+                                textTransform: "capitalize",
+                              }}
+                            >
+                              {productName}
+                            </span>
+                          </td>
+                          <td style={tableCellStyle}>
+                            <span
+                              style={{
+                                display: "inline-block",
+                                padding: "6px 16px",
+                                backgroundColor: "#DCFCE7",
+                                color: "#166534",
+                                borderRadius: "9999px",
+                                fontWeight: "600",
+                                fontSize: "14px",
+                              }}
+                            >
+                              {count} available
+                            </span>
+                          </td>
+                          <td style={tableCellStyle}>
+                            <span
+                              style={{
+                                display: "inline-block",
+                                padding: "6px 16px",
+                                backgroundColor: "#FEF3C7",
+                                color: "#92400E",
+                                borderRadius: "9999px",
+                                fontWeight: "600",
+                                fontSize: "14px",
+                              }}
+                            >
+                              {totalUsed} used
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    }
                   )
                 )}
-              </div>
-            )}
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -445,6 +488,7 @@ export default function AdminDashboard() {
                   outline: "none",
                   minWidth: "300px",
                   transition: "border-color 0.2s",
+                  color: "#111827",
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = "#667eea";
@@ -465,12 +509,12 @@ export default function AdminDashboard() {
             >
               <thead>
                 <tr style={{ backgroundColor: "#F9FAFB" }}>
-                  <th style={tableHeaderStyle}>Transaction ID</th>
                   <th style={tableHeaderStyle}>Email</th>
+                  <th style={tableHeaderStyle}>Transaction ID</th>
+                  <th style={tableHeaderStyle}>Payment Status</th>
                   <th style={tableHeaderStyle}>Voucher Code</th>
                   <th style={tableHeaderStyle}>Amount</th>
-                  <th style={tableHeaderStyle}>Status</th>
-                  <th style={tableHeaderStyle}>Date</th>
+                  <th style={tableHeaderStyle}>Transaction Created</th>
                 </tr>
               </thead>
               <tbody>
@@ -509,6 +553,9 @@ export default function AdminDashboard() {
                       }}
                     >
                       <td style={tableCellStyle}>
+                        <span style={{ color: "#374151" }}>{tx.email}</span>
+                      </td>
+                      <td style={tableCellStyle}>
                         <span
                           style={{
                             fontFamily: "monospace",
@@ -517,39 +564,6 @@ export default function AdminDashboard() {
                           }}
                         >
                           {tx.transaction_id}
-                        </span>
-                      </td>
-                      <td style={tableCellStyle}>
-                        <span style={{ color: "#374151" }}>{tx.email}</span>
-                      </td>
-                      <td style={tableCellStyle}>
-                        {tx.voucher_code ? (
-                          <span
-                            style={{
-                              display: "inline-block",
-                              padding: "6px 12px",
-                              backgroundColor: "#EEF2FF",
-                              color: "#4F46E5",
-                              borderRadius: "6px",
-                              fontWeight: "600",
-                              fontSize: "14px",
-                              fontFamily: "monospace",
-                            }}
-                          >
-                            {tx.voucher_code}
-                          </span>
-                        ) : (
-                          <span style={{ color: "#9CA3AF" }}>-</span>
-                        )}
-                      </td>
-                      <td style={tableCellStyle}>
-                        <span
-                          style={{
-                            fontWeight: "600",
-                            color: "#111827",
-                          }}
-                        >
-                          Rp {tx.amount?.toLocaleString("id-ID")}
                         </span>
                       </td>
                       <td style={tableCellStyle}>
@@ -589,6 +603,36 @@ export default function AdminDashboard() {
                             </span>
                           );
                         })()}
+                      </td>
+                      <td style={tableCellStyle}>
+                        {tx.voucher_code ? (
+                          <span
+                            style={{
+                              display: "inline-block",
+                              padding: "6px 12px",
+                              backgroundColor: "#EEF2FF",
+                              color: "#4F46E5",
+                              borderRadius: "6px",
+                              fontWeight: "600",
+                              fontSize: "14px",
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            {tx.voucher_code}
+                          </span>
+                        ) : (
+                          <span style={{ color: "#9CA3AF" }}>-</span>
+                        )}
+                      </td>
+                      <td style={tableCellStyle}>
+                        <span
+                          style={{
+                            fontWeight: "600",
+                            color: "#111827",
+                          }}
+                        >
+                          Rp {tx.amount?.toLocaleString("id-ID")}
+                        </span>
                       </td>
                       <td style={tableCellStyle}>
                         <span
@@ -800,37 +844,41 @@ export default function AdminDashboard() {
                 maxWidth: "800px",
                 width: "100%",
                 maxHeight: "90vh",
-                overflow: "auto",
                 boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
                 position: "relative",
               }}
             >
               {/* Close Button */}
-              <button
+              {/* <button
                 onClick={() => setShowAddVoucher(false)}
                 style={{
                   position: "absolute",
-                  top: "16px",
-                  right: "16px",
-                  padding: "8px",
-                  backgroundColor: "transparent",
+                  top: "-20px",
+                  right: "-20px",
+                  width: "40px",
+                  height: "40px",
+                  backgroundColor: "#F3F4F6",
                   border: "none",
-                  fontSize: "28px",
+                  fontSize: "24px",
                   cursor: "pointer",
                   color: "#6B7280",
                   lineHeight: 1,
-                  zIndex: 10,
-                  transition: "color 0.2s",
+                  zIndex: 100,
+                  transition: "all 0.2s",
+                  borderRadius: "100%",
+                  fontWeight: "bold",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.color = "#EF4444";
+                  e.currentTarget.style.backgroundColor = "#FEE2E2";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.color = "#6B7280";
+                  e.currentTarget.style.backgroundColor = "#F3F4F6";
                 }}
               >
                 ×
-              </button>
+              </button> */}
 
               {/* Add Voucher Form */}
               <AddVoucherForm
@@ -838,6 +886,7 @@ export default function AdminDashboard() {
                   fetchData();
                   setShowAddVoucher(false);
                 }}
+                existingProductNames={existingProductNames}
               />
             </div>
           </div>
