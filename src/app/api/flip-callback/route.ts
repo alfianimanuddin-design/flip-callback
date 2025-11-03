@@ -733,38 +733,121 @@ async function sendVoucherEmail(
     </style>
     <![endif]-->
     <style type="text/css">
-        /* Prevent color changes in dark mode */
+        /* Comprehensive dark mode prevention */
         @media (prefers-color-scheme: dark) {
-            body, table, td, div, p, h1, h2, h3, h4 {
+            /* Force all elements to ignore dark mode */
+            body, table, td, div, p, h1, h2, h3, h4, span, a {
                 color-scheme: light !important;
             }
-            /* Force white backgrounds to stay white */
-            .bg-white, .bg-white * {
-                background-color: #ffffff !important;
-                color: inherit !important;
-            }
-            /* Force yellow background */
-            .bg-yellow {
+            
+            /* Prevent background color changes */
+            body,
+            .bg-yellow,
+            .bg-white,
+            table[bgcolor],
+            td[bgcolor] {
                 background-color: #fde9b6 !important;
+                -webkit-text-fill-color: inherit !important;
+            }
+            
+            .bg-white,
+            table[bgcolor="#ffffff"],
+            td[bgcolor="#ffffff"] {
+                background-color: #ffffff !important;
+            }
+            
+            /* Prevent text color inversions */
+            h1, h2, h3, h4, p, span, td {
+                color: inherit !important;
+                -webkit-text-fill-color: inherit !important;
+            }
+            
+            /* Force specific text colors */
+            .text-brown {
+                color: #543d07 !important;
+                -webkit-text-fill-color: #543d07 !important;
+            }
+            
+            .text-white {
+                color: #fffffe !important;
+                -webkit-text-fill-color: #fffffe !important;
+            }
+            
+            .text-dark {
+                color: #222223 !important;
+                -webkit-text-fill-color: #222223 !important;
+            }
+            
+            .text-gray {
+                color: #747474 !important;
+                -webkit-text-fill-color: #747474 !important;
+            }
+            
+            .text-red {
+                color: #d32f2f !important;
+                -webkit-text-fill-color: #d32f2f !important;
+            }
+            
+            /* Prevent gradient inversions */
+            .voucher-code-bg {
+                background: linear-gradient(to top, #a87a0d 8.874%, #423005 100%) !important;
+            }
+            
+            /* Prevent image inversions */
+            img {
+                opacity: 1 !important;
+                filter: none !important;
+                -webkit-filter: none !important;
             }
         }
 
-        /* Force light mode colors */
+        /* Force light mode colors for various email clients */
         [data-ogsc] body,
-        [data-ogsc] .body {
+        [data-ogsc] .body,
+        [data-ogsc] .bg-yellow {
             background-color: #fde9b6 !important;
+        }
+        
+        [data-ogsc] .bg-white {
+            background-color: #ffffff !important;
         }
 
         /* Prevent Gmail dark mode overrides */
+        u + .body .bg-yellow {
+            background-color: #fde9b6 !important;
+        }
+        
         u + .body .bg-white {
             background-color: #ffffff !important;
+        }
+        
+        u + .body .text-brown {
+            color: #543d07 !important;
         }
 
         /* Prevent Apple Mail dark mode */
         @supports (-webkit-appearance:none) {
+            body, .bg-yellow {
+                background-color: #fde9b6 !important;
+            }
+            
             .bg-white {
                 background-color: #ffffff !important;
             }
+            
+            .text-brown {
+                color: #543d07 !important;
+            }
+        }
+        
+        /* Prevent Outlook dark mode */
+        [data-ogsb] body,
+        [data-ogsb] .bg-yellow {
+            background-color: #fde9b6 !important;
+        }
+        
+        [data-ogsb] .bg-white {
+            background-color: #ffffff !important;
         }
     </style>
     <meta name="color-scheme" content="light only">
@@ -772,10 +855,10 @@ async function sendVoucherEmail(
 
 
 </head>
-<body class="body bg-yellow" style="margin: 0; padding: 0; background-color: #fde9b6 !important; font-family: 'Proxima Nova', Arial, sans-serif;" bgcolor="#fde9b6">
+<body class="body bg-yellow" style="margin: 0; padding: 0; background-color: #fde9b6 !important; font-family: 'Proxima Nova', Arial, sans-serif; color-scheme: light only;" bgcolor="#fde9b6">
 
     <!-- Main Container -->
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="bg-yellow" bgcolor="#fde9b6" style="background-color: #fde9b6 !important; background-image: url('https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/email%20background.svg'); background-repeat: no-repeat; background-position: center top; background-size: 600px auto;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="bg-yellow" bgcolor="#fde9b6" style="background-color: #fde9b6 !important; background-image: url('https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/email%20background.svg'); background-repeat: no-repeat; background-position: center top; background-size: 600px auto; color-scheme: light only;">
         <tr>
             <td align="center" style="padding: 0 0 40px 0;">
 
@@ -784,15 +867,15 @@ async function sendVoucherEmail(
 
                     <!-- Header with Logo -->
                     <tr>
-                        <td class="bg-white" bgcolor="#ffffff" style="background-color: #ffffff !important; border-radius: 0 0 24px 24px; padding: 16px;">
+                        <td class="bg-white" bgcolor="#ffffff" style="background-color: #ffffff !important; border-radius: 0 0 24px 24px; padding: 16px; color-scheme: light only;">
                             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                                 <tr>
-                                    <td style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 15px; font-weight: bold; color: #543d07; text-align: left;">
+                                    <td class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 15px; font-weight: bold; color: #543d07 !important; text-align: left; -webkit-text-fill-color: #543d07 !important;">
                                         Flip Jajan
                                     </td>
                                     <td align="right" style="width: 38px;">
                                         <!-- Flip Logo -->
-                                        <img src="https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/flip-logo.png" alt="Flip Logo" width="38" height="38" style="display: block; border: 0;">
+                                        <img src="https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/flip-logo.png" alt="Flip Logo" width="38" height="38" style="display: block; border: 0; opacity: 1 !important; filter: none !important;">
                                     </td>
                                 </tr>
                             </table>
@@ -805,7 +888,7 @@ async function sendVoucherEmail(
                     <!-- Detail Voucher Title -->
                     <tr>
                         <td style="padding: 0 20px;">
-                            <h2 style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: bold; color: #543d07; text-align: center;">
+                            <h2 class="text-brown" style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: bold; color: #543d07 !important; text-align: center; -webkit-text-fill-color: #543d07 !important;">
                                 Detail Voucher
                             </h2>
                         </td>
@@ -817,7 +900,7 @@ async function sendVoucherEmail(
                     <!-- Product Name -->
                     <tr>
                         <td style="padding: 0 20px;">
-                            <h1 style="margin: 0 0 16px 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 32px; font-weight: bold; color: #543d07; text-align: center; line-height: 40px;">
+                            <h1 class="text-brown" style="margin: 0 0 16px 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 32px; font-weight: bold; color: #543d07 !important; text-align: center; line-height: 40px; -webkit-text-fill-color: #543d07 !important;">
                                 ${voucher.product_name}
                             </h1>
                         </td>
@@ -826,10 +909,10 @@ async function sendVoucherEmail(
                     <!-- Voucher Code Button -->
                     <tr>
                         <td style="padding: 0 20px;">
-                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: linear-gradient(to top, #a87a0d 8.874%, #423005 100%); border-radius: 23px; box-shadow: 0px 4px 19px 0px rgba(168,122,13,0.1);">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="voucher-code-bg" style="background: linear-gradient(to top, #a87a0d 8.874%, #423005 100%) !important; border-radius: 23px; box-shadow: 0px 4px 19px 0px rgba(168,122,13,0.1); color-scheme: light only;">
                                 <tr>
                                     <td style="padding: 15px; text-align: center;">
-                                        <p style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 34px; font-weight: bold; color: #fffffe; line-height: 30px;">
+                                        <p class="text-white" style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 34px; font-weight: bold; color: #fffffe !important; line-height: 30px; -webkit-text-fill-color: #fffffe !important;">
                                             ${voucher.code}
                                         </p>
                                     </td>
@@ -844,52 +927,55 @@ async function sendVoucherEmail(
                     <!-- Voucher Details Box -->
                     <tr>
                         <td style="padding: 0 20px;">
-                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="bg-white" bgcolor="#ffffff" style="background-color: #ffffff !important; border: 1px solid #dca82e; border-radius: 16px;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="bg-white" bgcolor="#ffffff" style="background-color: #ffffff !important; border: 1px solid #dca82e; border-radius: 16px; color-scheme: light only;">
                                 <tr>
                                     <td style="padding: 15px;">
                                         <!-- Transaksi ID -->
                                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 8px;">
                                             <tr>
-                                                <td width="50%" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; text-align: left; padding: 8px 0;">
+                                                <td width="50%" class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07 !important; text-align: left; padding: 8px 0; -webkit-text-fill-color: #543d07 !important;">
                                                     ID Transaksi
                                                 </td>
-                                                <td width="50%" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; text-align: right; padding: 8px 0;">
+                                                <td width="50%" class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07 !important; text-align: right; padding: 8px 0; -webkit-text-fill-color: #543d07 !important;">
                                                     ${transactionId}
                                                 </td>
                                             </tr>
                                         </table>
+
                                         <!-- Nilai Voucher -->
                                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 8px;">
                                             <tr>
-                                                <td width="50%" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; text-align: left; padding: 8px 0;">
+                                                <td width="50%" class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07 !important; text-align: left; padding: 8px 0; -webkit-text-fill-color: #543d07 !important;">
                                                     Nilai Voucher
                                                 </td>
-                                                <td width="50%" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; text-align: right; padding: 8px 0;">
-                                                    Rp ${voucher.amount.toLocaleString("id-ID")}
+                                                <td width="50%" class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07 !important; text-align: right; padding: 8px 0; -webkit-text-fill-color: #543d07 !important;">
+                                                    ${voucher.amount}
                                                 </td>
                                             </tr>
                                         </table>
+
                                         <!-- Harga Voucher -->
                                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 8px;">
                                             <tr>
-                                                <td width="50%" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; text-align: left; padding: 8px 0;">
+                                                <td width="50%" class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07 !important; text-align: left; padding: 8px 0; -webkit-text-fill-color: #543d07 !important;">
                                                     Harga Voucher
                                                 </td>
-                                                <td width="50%" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; text-align: right; padding: 8px 0;">
-                                                    Rp ${(voucher.discounted_amount || voucher.amount).toLocaleString("id-ID")}
+                                                <td width="50%" class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07 !important; text-align: right; padding: 8px 0; -webkit-text-fill-color: #543d07 !important;">
+                                                    ${voucher.price}
                                                 </td>
                                             </tr>
                                         </table>
+
                                         ${
-                                          hasDiscount
+                                          voucher.discount_percentage
                                             ? `
                                         <!-- Potongan Harga -->
                                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 8px;">
                                             <tr>
-                                                <td width="50%" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; text-align: left; padding: 8px 0;">
+                                                <td width="50%" class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07 !important; text-align: left; padding: 8px 0; -webkit-text-fill-color: #543d07 !important;">
                                                     Potongan Harga
                                                 </td>
-                                                <td width="50%" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #d32f2f; text-align: right; padding: 8px 0;">
+                                                <td width="50%" class="text-red" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #d32f2f !important; text-align: right; padding: 8px 0; -webkit-text-fill-color: #d32f2f !important;">
                                                     ${discountPercentage}%
                                                 </td>
                                             </tr>
@@ -900,10 +986,10 @@ async function sendVoucherEmail(
                                         <!-- Berlaku Sampai -->
                                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                                             <tr>
-                                                <td width="50%" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; text-align: left; padding: 8px 0;">
+                                                <td width="50%" class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07 !important; text-align: left; padding: 8px 0; -webkit-text-fill-color: #543d07 !important;">
                                                     Berlaku Sampai
                                                 </td>
-                                                <td width="50%" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; text-align: right; padding: 8px 0;">
+                                                <td width="50%" class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07 !important; text-align: right; padding: 8px 0; -webkit-text-fill-color: #543d07 !important;">
                                                     3 Mei 2026
                                                 </td>
                                             </tr>
@@ -920,7 +1006,7 @@ async function sendVoucherEmail(
                     <!-- Terms Text 1 -->
                     <tr>
                         <td style="padding: 0 20px;">
-                            <p style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; color: #543d07; line-height: 22px;">
+                            <p class="text-brown" style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; color: #543d07 !important; line-height: 22px; -webkit-text-fill-color: #543d07 !important;">
                                 Berlaku di semua outlet <strong>kecuali</strong> Kenangan Heritage, Kenangan Signature, Chigo, Bandara atau Booth/Event
                             </p>
                         </td>
@@ -932,7 +1018,7 @@ async function sendVoucherEmail(
                     <!-- Terms Text 2 -->
                     <tr>
                         <td style="padding: 0 20px;">
-                            <p style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; color: #543d07; line-height: 22px;">
+                            <p class="text-brown" style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; color: #543d07 !important; line-height: 22px; -webkit-text-fill-color: #543d07 !important;">
                                 ⚠️ Voucher <strong>tidak berlaku</strong> untuk tambahan topping, ongkos kirim, atau shopping bag.
                             </p>
                         </td>
@@ -944,7 +1030,7 @@ async function sendVoucherEmail(
                     <!-- How To Redeem Section -->
                     <tr>
                         <td style="padding: 0 20px;">
-                            <h3 style="margin: 0 0 16px 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: bold; color: #222223; text-align: center; line-height: 24px;">
+                            <h3 class="text-dark" style="margin: 0 0 16px 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: bold; color: #222223 !important; text-align: center; line-height: 24px; -webkit-text-fill-color: #222223 !important;">
                                 Cara Redeem Vouchernya
                             </h3>
                         </td>
@@ -953,20 +1039,20 @@ async function sendVoucherEmail(
                     <!-- Redeem Step 1 -->
                     <tr>
                         <td style="padding: 0 20px;">
-                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="bg-white" bgcolor="#ffffff" style="background-color: #ffffff !important; border-radius: 24px; margin-bottom: 16px;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="bg-white" bgcolor="#ffffff" style="background-color: #ffffff !important; border-radius: 24px; margin-bottom: 16px; color-scheme: light only;">
                                 <tr>
                                     <td style="padding: 16px;">
                                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                                             <tr>
                                                 <td style="width: 50px; vertical-align: top;">
                                                     <!-- Step 1 Icon -->
-                                                    <img src="https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/step1.png" alt="Step 1" width="50" height="50" style="display: block; border-radius: 8px; border: 0;">
+                                                    <img src="https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/step1.png" alt="Step 1" width="50" height="50" style="display: block; border-radius: 8px; border: 0; opacity: 1 !important; filter: none !important;">
                                                 </td>
                                                 <td style="padding-left: 16px; vertical-align: top;">
-                                                    <h4 style="margin: 0 0 4px 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; font-weight: bold; color: #222223; line-height: 22px;">
+                                                    <h4 class="text-dark" style="margin: 0 0 4px 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; font-weight: bold; color: #222223 !important; line-height: 22px; -webkit-text-fill-color: #222223 !important;">
                                                         Redeem di Outlet
                                                     </h4>
-                                                    <p style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; color: #747474; line-height: 22px;">
+                                                    <p class="text-gray" style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; color: #747474 !important; line-height: 22px; -webkit-text-fill-color: #747474 !important;">
                                                         Tunjukkan kode voucher yang sudah kamu ke kasir. Kamu bisa cek kode vouchermu lewat email atau galeri.
                                                     </p>
                                                 </td>
@@ -981,20 +1067,20 @@ async function sendVoucherEmail(
                     <!-- Redeem Step 2 -->
                     <tr>
                         <td style="padding: 0 20px;">
-                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="bg-white" bgcolor="#ffffff" style="background-color: #ffffff !important; border-radius: 24px;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="bg-white" bgcolor="#ffffff" style="background-color: #ffffff !important; border-radius: 24px; color-scheme: light only;">
                                 <tr>
                                     <td style="padding: 16px;">
                                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                                             <tr>
                                                 <td style="width: 50px; vertical-align: top;">
                                                     <!-- Step 2 Icon -->
-                                                    <img src="https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/step%202.png" alt="Step 2" width="50" height="50" style="display: block; border-radius: 8px; border: 0;">
+                                                    <img src="https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/email%20assets/step%202.png" alt="Step 2" width="50" height="50" style="display: block; border-radius: 8px; border: 0; opacity: 1 !important; filter: none !important;">
                                                 </td>
                                                 <td style="padding-left: 16px; vertical-align: top;">
-                                                    <h4 style="margin: 0 0 4px 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; font-weight: bold; color: #222223; line-height: 22px;">
+                                                    <h4 class="text-dark" style="margin: 0 0 4px 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; font-weight: bold; color: #222223 !important; line-height: 22px; -webkit-text-fill-color: #222223 !important;">
                                                         Redeem di Aplikasi Kopi Kenangan
                                                     </h4>
-                                                    <p style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; color: #747474; line-height: 22px;">
+                                                    <p class="text-gray" style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; color: #747474 !important; line-height: 22px; -webkit-text-fill-color: #747474 !important;">
                                                         Masukkan kode vouchernya via menu VIP lalu lanjutkan seperti biasa. Transaksi dengan voucher ini tidak mendapatkan Kenangan Points.
                                                     </p>
                                                 </td>
