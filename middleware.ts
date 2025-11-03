@@ -22,15 +22,15 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/admin/login", req.url));
     }
 
-    // Optional: Check if user has admin role
+    // Optional: Check if user has admin or user role
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", session.user.id)
       .single();
 
-    if (profile && profile.role !== "admin") {
-      // Redirect non-admin users
+    if (profile && profile.role !== "admin" && profile.role !== "user") {
+      // Redirect users without proper role
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
   }
