@@ -949,7 +949,7 @@ async function sendVoucherEmail(
                                                     Nilai Voucher
                                                 </td>
                                                 <td width="50%" class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07 !important; text-align: right; padding: 8px 0; -webkit-text-fill-color: #543d07 !important;">
-                                                    ${voucher.amount}
+                                                    Rp ${voucher.amount}
                                                 </td>
                                             </tr>
                                         </table>
@@ -961,7 +961,7 @@ async function sendVoucherEmail(
                                                     Harga Voucher
                                                 </td>
                                                 <td width="50%" class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07 !important; text-align: right; padding: 8px 0; -webkit-text-fill-color: #543d07 !important;">
-                                                    ${voucher.price}
+                                                    Rp ${(voucher.discounted_amount || voucher.amount).toLocaleString("id-ID")}
                                                 </td>
                                             </tr>
                                         </table>
