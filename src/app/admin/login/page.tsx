@@ -24,7 +24,7 @@ export default function AdminLogin() {
 
       if (error) throw error;
 
-      // Optional: Verify admin role
+      // Optional: Verify admin or user role
       if (data.user) {
         const { data: profile } = await supabase
           .from("profiles")
@@ -32,9 +32,9 @@ export default function AdminLogin() {
           .eq("id", data.user.id)
           .single();
 
-        if (profile && profile.role !== "admin") {
+        if (profile && profile.role !== "admin" && profile.role !== "user") {
           await supabase.auth.signOut();
-          setError("Unauthorized: Admin access only");
+          setError("Unauthorized: Access denied");
           setLoading(false);
           return;
         }

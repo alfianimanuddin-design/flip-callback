@@ -31,6 +31,7 @@ export default function AdminDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
+  const [userRole, setUserRole] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [showAddVoucher, setShowAddVoucher] = useState(false);
@@ -54,6 +55,17 @@ export default function AdminDashboard() {
     }
 
     setUserEmail(session.user.email || "");
+
+    // Fetch user role from profiles table
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", session.user.id)
+      .single();
+
+    if (profile) {
+      setUserRole(profile.role || "");
+    }
   };
 
   const fetchData = async () => {
@@ -320,31 +332,33 @@ export default function AdminDashboard() {
               >
                 Available Vouchers ({voucherData.available})
               </h2>
-              <button
-                onClick={() => setShowAddVoucher(true)}
-                style={{
-                  padding: "10px 20px",
-                  backgroundColor: "#667eea",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.boxShadow =
-                    "0 4px 12px rgba(0,0,0,0.15)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-              >
-                ➕ Add Voucher
-              </button>
+              {userRole === "admin" && (
+                <button
+                  onClick={() => setShowAddVoucher(true)}
+                  style={{
+                    padding: "10px 20px",
+                    backgroundColor: "#667eea",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.boxShadow =
+                      "0 4px 12px rgba(0,0,0,0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  ➕ Add Voucher
+                </button>
+              )}
             </div>
           </div>
 
