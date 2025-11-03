@@ -851,7 +851,7 @@ async function sendVoucherEmail(
                                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 8px;">
                                             <tr>
                                                 <td width="50%" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; text-align: left; padding: 8px 0;">
-                                                    Transaksi ID
+                                                    ID Transaksi
                                                 </td>
                                                 <td width="50%" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; text-align: right; padding: 8px 0;">
                                                     ${transactionId}
@@ -904,7 +904,7 @@ async function sendVoucherEmail(
                                                     Berlaku Sampai
                                                 </td>
                                                 <td width="50%" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07; text-align: right; padding: 8px 0;">
-                                                    30 Mei 2026
+                                                    3 Mei 2026
                                                 </td>
                                             </tr>
                                         </table>
