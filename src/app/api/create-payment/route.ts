@@ -1,29 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { rateLimit, RATE_LIMIT_CONFIGS } from "@/lib/security/rate-limit";
+import { getCorsHeaders } from "@/lib/security/cors";
+import {
+  createPaymentSchema,
+  validateRequest,
+} from "@/lib/security/validation";
+import { secureLog } from "@/lib/security/logger";
+import { getClientIdentifier } from "@/lib/security/auth";
 
-// Define CORS headers at the top for reuse
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Max-Age": "86400", // 24 hours
-};
-
-// Minimum amount for QRIS payments (typically 10,000 IDR for Flip)
+// Minimum amount for QRIS payments
 const MIN_QRIS_AMOUNT = 1000;
 
-// Function to calculate expired date (current time + 15 minutes)
+// Function to calculate expired date (current time + 10 minutes)
 function getExpiredDate(): string {
   const now = new Date();
-  const expiredDate = new Date(now.getTime() + 10 * 60 * 1000); // Add 10 minutes
+  const expiredDate = new Date(now.getTime() + 10 * 60 * 1000);
 
   // Convert to Indonesian time (WIB/UTC+7)
-  const wibOffset = 7 * 60; // 7 hours in minutes
+  const wibOffset = 7 * 60;
   const utcTime =
     expiredDate.getTime() + expiredDate.getTimezoneOffset() * 60 * 1000;
   const wibTime = new Date(utcTime + wibOffset * 60 * 1000);
 
-  // Format as YYYY-MM-DD HH:mm (matching your curl example format)
+  // Format as YYYY-MM-DD HH:mm
   const year = wibTime.getFullYear();
   const month = String(wibTime.getMonth() + 1).padStart(2, "0");
   const day = String(wibTime.getDate()).padStart(2, "0");
@@ -34,23 +34,44 @@ function getExpiredDate(): string {
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const {
-      amount,
-      discounted_amount,
-      email,
-      title,
-      product_name,
-      name,
-      sender_bank_type,
-    } = await request.json();
+  const origin = request.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin, "POST, OPTIONS");
 
-    // Validate inputs
-    if (!amount || !email || !product_name || !name) {
+  try {
+    // SECURITY: Rate limiting
+    const identifier = getClientIdentifier(request);
+    const rateLimitResult = await rateLimit(
+      identifier,
+      RATE_LIMIT_CONFIGS.createPayment
+    );
+
+    if (!rateLimitResult.success) {
       return NextResponse.json(
         {
           success: false,
-          message: "Amount, email, product_name, and name are required",
+          message: "Too many requests. Please try again later.",
+        },
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "X-RateLimit-Limit": rateLimitResult.limit.toString(),
+            "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
+            "X-RateLimit-Reset": new Date(rateLimitResult.reset).toISOString(),
+          },
+        }
+      );
+    }
+
+    const body = await request.json();
+
+    // SECURITY: Input validation with Zod
+    const validation = await validateRequest(createPaymentSchema, body);
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: validation.error,
         },
         {
           status: 400,
@@ -59,12 +80,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use discounted amount if available, otherwise use regular amount
+    const {
+      amount,
+      discounted_amount,
+      email,
+      title,
+      product_name,
+      name,
+      sender_bank_type,
+    } = validation.data;
+
+    // Use discounted amount if available
     const actualAmount = discounted_amount || amount;
     const hasDiscount =
       discounted_amount !== null && discounted_amount !== undefined;
 
-    // Validate minimum amount BEFORE reserving voucher
+    // Validate minimum amount
     if (actualAmount < MIN_QRIS_AMOUNT) {
       return NextResponse.json(
         {
@@ -85,7 +116,7 @@ export async function POST(request: NextRequest) {
     if (!process.env.FLIP_SECRET_KEY) {
       console.error("❌ FLIP_SECRET_KEY is not set!");
       return NextResponse.json(
-        { success: false, message: "API key not configured" },
+        { success: false, message: "Service temporarily unavailable" },
         {
           status: 500,
           headers: corsHeaders,
@@ -93,9 +124,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(
-      `🔄 Creating payment for ${name} (${email}), ${hasDiscount ? `original: ${amount}, discounted: ${actualAmount}` : `amount: ${actualAmount}`}`
-    );
+    secureLog("🔄 Creating payment", {
+      name,
+      email,
+      product_name,
+      amount: actualAmount,
+      has_discount: hasDiscount,
+    });
 
     // ========== FETCH AND RESERVE VOUCHER ==========
     const { data: availableVoucher, error: voucherError } = await supabase
@@ -107,11 +142,10 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (voucherError || !availableVoucher) {
-      console.error(
-        "❌ No available vouchers for product:",
+      secureLog("❌ No available vouchers", {
         product_name,
-        voucherError
-      );
+        error: voucherError?.message,
+      });
       return NextResponse.json(
         {
           success: false,
@@ -129,7 +163,7 @@ export async function POST(request: NextRequest) {
     );
     voucherId = availableVoucher.id;
 
-    // Reserve the voucher immediately by marking it as used
+    // Reserve the voucher immediately
     const { error: reserveError } = await supabase
       .from("vouchers")
       .update({ used: true })
@@ -140,7 +174,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: "Failed to reserve voucher",
+          message: "Failed to process request",
         },
         {
           status: 500,
@@ -150,10 +184,9 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`✅ Voucher reserved: ${availableVoucher.code}`);
-    // ========== END VOUCHER LOGIC ==========
 
-    // Create pending transaction with voucher
-    tempId = `TEMP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Create pending transaction
+    tempId = `TEMP-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
     const { error: pendingError } = await supabase.from("transactions").insert({
       temp_id: tempId,
@@ -168,7 +201,7 @@ export async function POST(request: NextRequest) {
     if (pendingError) {
       console.error("❌ Error creating pending transaction:", pendingError);
 
-      // Release voucher if transaction creation fails
+      // Rollback: Release voucher
       await supabase
         .from("vouchers")
         .update({ used: false })
@@ -177,7 +210,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: "Failed to create transaction",
+          message: "Failed to process request",
         },
         {
           status: 500,
@@ -193,7 +226,7 @@ export async function POST(request: NextRequest) {
     // Create auth header
     const authHeader = `Basic ${Buffer.from(process.env.FLIP_SECRET_KEY + ":").toString("base64")}`;
 
-    // Step 3: Create payment with pre-filled customer data
+    // Create payment with Flip
     const expiredDate = getExpiredDate();
     const formData = new URLSearchParams();
     formData.append("title", title || "Voucher Purchase");
@@ -204,37 +237,32 @@ export async function POST(request: NextRequest) {
     formData.append("sender_name", name);
     formData.append("sender_email", email);
     formData.append("sender_bank", "qris");
-    formData.append("sender_bank_type", "wallet_account");
+    formData.append("sender_bank_type", sender_bank_type || "wallet_account");
     formData.append(
       "redirect_url",
       `https://flip-callback.vercel.app/api/redirect-payment?transaction_id=${tempId}`
     );
 
-    console.log("📤 Step 3 - Creating payment:", formData.toString());
+    secureLog("📤 Creating payment with Flip API");
 
-    const flipResponse = await fetch(
-      // "https://bigflip.id/big_sandbox_api/v2/pwf/bill",
-      "https://bigflip.id/api/v2/pwf/bill",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: authHeader,
-        },
-        body: formData.toString(),
-      }
-    );
+    const flipResponse = await fetch("https://bigflip.id/api/v2/pwf/bill", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: authHeader,
+      },
+      body: formData.toString(),
+    });
 
     const responseText = await flipResponse.text();
-    console.log("📥 Flip API raw response:", responseText);
 
     let flipData;
     try {
       flipData = JSON.parse(responseText);
     } catch (e) {
-      console.error("❌ Failed to parse Flip response:", responseText);
+      console.error("❌ Failed to parse Flip response");
 
-      // Release voucher on failure
+      // Rollback
       if (voucherId) {
         await supabase
           .from("vouchers")
@@ -245,8 +273,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: "Invalid response from Flip",
-          raw_response: responseText,
+          message: "Payment service error",
         },
         {
           status: 500,
@@ -255,11 +282,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for validation errors from Flip (e.g., minimum amount)
+    // Check for validation errors from Flip
     if (flipData.code === "VALIDATION_ERROR" && flipData.errors) {
       console.error("❌ Flip validation error:", flipData.errors);
 
-      // Release voucher on validation failure
+      // Rollback: Release voucher
       if (voucherId) {
         await supabase
           .from("vouchers")
@@ -276,7 +303,6 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           message: errorMessage || "Payment validation failed",
-          errors: flipData.errors,
         },
         {
           status: 400,
@@ -285,13 +311,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // v3 API uses payment_url or link_url
     const paymentUrl = flipData.payment_url || flipData.link_url;
 
     if (!paymentUrl) {
       console.error("❌ No payment link returned from Flip");
 
-      // Release voucher on failure
+      // Rollback
       if (voucherId) {
         await supabase
           .from("vouchers")
@@ -303,8 +328,6 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           message: "Failed to create payment link",
-          flip_response: flipData,
-          flip_status: flipResponse.status,
         },
         {
           status: 500,
@@ -313,11 +336,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("📋 Full Flip response:", JSON.stringify(flipData, null, 2));
-    console.log(`✅ Payment created successfully`);
-    console.log(`🔗 Payment link: ${paymentUrl}`);
-    console.log(`🆔 Transaction ID: ${flipData.bill_payment?.id}`);
-    console.log(`🔗 Link ID: ${flipData.link_id}`);
+    secureLog("✅ Payment created successfully", {
+      transaction_id: flipData.bill_payment?.id,
+      link_id: flipData.link_id,
+    });
 
     // Update pending transaction with bill_link_id
     if (flipData.link_id && tempId) {
@@ -328,10 +350,6 @@ export async function POST(request: NextRequest) {
           transaction_id: flipData.bill_payment?.id,
         })
         .eq("temp_id", tempId);
-
-      console.log(
-        `✅ Updated pending tx with bill_link_id: ${flipData.link_id}`
-      );
     }
 
     return NextResponse.json(
@@ -354,8 +372,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to create payment",
-        error: error instanceof Error ? error.message : "Unknown error",
+        message: "Internal server error",
       },
       {
         status: 500,
@@ -366,7 +383,10 @@ export async function POST(request: NextRequest) {
 }
 
 // Handle OPTIONS request for CORS preflight
-export async function OPTIONS() {
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin, "POST, OPTIONS");
+
   return new NextResponse(null, {
     status: 204,
     headers: corsHeaders,

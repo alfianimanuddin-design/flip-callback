@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { Resend } from "resend";
+import { verifyFlipWebhook } from "@/lib/security/webhook-verification";
+import { secureLog, logSecurityEvent } from "@/lib/security/logger";
+import { getClientIp } from "@/lib/security/auth";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -15,6 +18,42 @@ interface FlipCallbackData {
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Verify webhook signature (SOFT VALIDATION MODE - Safe for testing)
+    // This logs warnings but doesn't reject webhooks yet
+    // TODO: Enable strict mode after confirming signature verification works
+    const signature =
+      request.headers.get("x-callback-token") ||
+      request.headers.get("x-flip-signature");
+
+    // Get raw body for signature verification
+    const rawBody = await request.text();
+
+    // SOFT VALIDATION: Log results but continue processing
+    if (!signature) {
+      console.warn("⚠️ SOFT VALIDATION: Webhook missing signature - would normally reject with 401");
+      logSecurityEvent("WEBHOOK_MISSING_SIGNATURE_SOFT", {
+        ip: getClientIp(request),
+        mode: "soft_validation",
+        message: "Missing signature - continuing in soft mode",
+      });
+      // Continue processing instead of returning error
+    } else {
+      // Verify signature
+      const isValid = verifyFlipWebhook(rawBody, signature);
+      if (!isValid) {
+        console.warn("⚠️ SOFT VALIDATION: Invalid webhook signature - would normally reject with 403");
+        logSecurityEvent("WEBHOOK_INVALID_SIGNATURE_SOFT", {
+          ip: getClientIp(request),
+          mode: "soft_validation",
+          message: "Invalid signature - continuing in soft mode",
+        });
+        // Continue processing instead of returning error
+      } else {
+        console.log("✅ SIGNATURE VERIFIED: Webhook signature is valid!");
+        secureLog("✅ Webhook signature verified successfully");
+      }
+    }
+
     // Check content type
     const contentType = request.headers.get("content-type") || "";
 
@@ -22,10 +61,11 @@ export async function POST(request: NextRequest) {
 
     if (contentType.includes("application/x-www-form-urlencoded")) {
       // Flip sends form-encoded data with JSON inside a "data" parameter
-      const formData = await request.formData();
-      const dataString = formData.get("data") as string;
+      // Parse URLSearchParams from raw body
+      const params = new URLSearchParams(rawBody);
+      const dataString = params.get("data");
 
-      console.log("📥 Form data received:", dataString);
+      secureLog("📥 Form data received");
 
       if (!dataString) {
         console.error("❌ No 'data' parameter in form");
@@ -38,13 +78,15 @@ export async function POST(request: NextRequest) {
       body = JSON.parse(dataString);
     } else {
       // Standard JSON
-      body = await request.json();
+      body = JSON.parse(rawBody);
     }
 
-    console.log(
-      "📥 Flip callback received - FULL PAYLOAD:",
-      JSON.stringify(body, null, 2)
-    );
+    secureLog("📥 Flip callback received", {
+      id: body.id,
+      status: body.status,
+      amount: body.amount,
+      sender_email: body.sender_email,
+    });
 
     const {
       id: transactionId,
@@ -64,9 +106,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(
-      `🔍 Transaction ID: ${transactionId}, Bill Link ID: ${bill_link_id}, Status: ${status}`
-    );
+    secureLog("🔍 Processing transaction", {
+      transaction_id: transactionId,
+      bill_link_id: bill_link_id,
+      status: status,
+    });
 
     // Check if transaction already exists with this Flip transaction ID or bill_link_id
     let existingTx = null;
