@@ -548,7 +548,7 @@ export default function AdminDashboard() {
                 </div>
                 <input
                   type="text"
-                  placeholder="Search by transaction ID, email, or voucher code..."
+                  placeholder="Search by transaction ID or email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
@@ -707,7 +707,7 @@ export default function AdminDashboard() {
                             color: "#111827",
                           }}
                         >
-                          Rp {tx.amount?.toLocaleString("id-ID")}
+                          Rp{tx.amount?.toLocaleString("id-ID")}
                         </span>
                       </td>
                       <td style={tableCellStyle}>
