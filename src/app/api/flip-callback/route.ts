@@ -183,7 +183,6 @@ export async function POST(request: NextRequest) {
               .update({
                 used: true,
                 expiry_date: expiryDate.toISOString(),
-                used_by: sender_email,
               })
               .eq("code", voucher.code)
               .eq("used", false);
@@ -572,7 +571,6 @@ export async function POST(request: NextRequest) {
       .update({
         used: true,
         expiry_date: expiryDate.toISOString(),
-        used_by: sender_email,
       })
       .eq("code", voucher.code)
       .eq("used", false);
@@ -611,7 +609,6 @@ export async function POST(request: NextRequest) {
           .update({
             used: false,
             expiry_date: null,
-            used_by: null,
           })
           .eq("code", voucher.code);
 
@@ -643,7 +640,6 @@ export async function POST(request: NextRequest) {
           .update({
             used: false,
             expiry_date: null,
-            used_by: null,
           })
           .eq("code", voucher.code);
 
@@ -729,7 +725,7 @@ async function sendVoucherEmail(
 
     // Verify environment
     if (!process.env.RESEND_API_KEY) {
-      console.error("❌ RESEND_API_KEY is not set!");
+      console.error("�� RESEND_API_KEY is not set!");
       return;
     }
     console.log("✅ RESEND_API_KEY is set");
