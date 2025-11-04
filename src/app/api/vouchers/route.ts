@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { rateLimit, RATE_LIMIT_CONFIGS } from "@/lib/security/rate-limit";
+import { getCorsHeaders } from "@/lib/security/cors";
+import { secureLog } from "@/lib/security/logger";
+import { getClientIdentifier, verifyApiKey } from "@/lib/security/auth";
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -8,8 +12,43 @@ const supabase = createClient(
 );
 
 export async function GET(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   try {
-    console.log("🔍 Fetching available vouchers...");
+    // API key authentication (soft validation for now)
+    const hasValidApiKey = verifyApiKey(request);
+    if (!hasValidApiKey) {
+      secureLog("⚠️ SOFT VALIDATION: Vouchers API accessed without valid API key", {
+        ip: getClientIdentifier(request),
+      });
+      // In soft mode, we log but continue
+      // To enable strict mode, uncomment below:
+      // return NextResponse.json(
+      //   { success: false, message: "Unauthorized" },
+      //   { status: 401, headers: corsHeaders }
+      // );
+    }
+
+    // Rate limiting
+    const identifier = getClientIdentifier(request);
+    const rateLimitResult = await rateLimit(identifier, RATE_LIMIT_CONFIGS.default);
+
+    if (!rateLimitResult.success) {
+      secureLog("⚠️ Rate limit exceeded for vouchers", { identifier });
+      return NextResponse.json(
+        { success: false, message: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Retry-After": String(Math.ceil((rateLimitResult.reset - Date.now()) / 1000)),
+          },
+        }
+      );
+    }
+
+    secureLog("🔍 Fetching available vouchers");
 
     // Query only unused vouchers
     const { data: vouchers, error } = await supabase
@@ -20,25 +59,20 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("❌ Supabase error:", error);
+      secureLog("❌ Supabase error fetching vouchers", { error: error.message });
       return NextResponse.json(
         {
           success: false,
           message: "Failed to fetch vouchers from database",
-          error: error.message,
         },
         {
           status: 500,
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-          },
+          headers: corsHeaders,
         }
       );
     }
 
-    console.log(`✅ Found ${vouchers?.length || 0} available vouchers`);
+    secureLog(`✅ Found available vouchers`, { count: vouchers?.length || 0 });
 
     return NextResponse.json(
       {
@@ -48,41 +82,30 @@ export async function GET(request: NextRequest) {
       },
       {
         status: 200,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
-        },
+        headers: corsHeaders,
       }
     );
   } catch (error) {
-    console.error("❌ Error fetching vouchers:", error);
+    secureLog("❌ Error fetching vouchers", { error: error instanceof Error ? error.message : "Unknown error" });
     return NextResponse.json(
       {
         success: false,
         message: "Failed to fetch vouchers",
-        error: error instanceof Error ? error.message : "Unknown error",
       },
       {
         status: 500,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
-        },
+        headers: corsHeaders,
       }
     );
   }
 }
 
 // Handle OPTIONS request for CORS preflight
-export async function OPTIONS() {
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
   return new NextResponse(null, {
     status: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
+    headers: corsHeaders,
   });
 }

@@ -1,10 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { rateLimit, RATE_LIMIT_CONFIGS } from "@/lib/security/rate-limit";
+import { secureLog } from "@/lib/security/logger";
+import { getClientIdentifier, verifyApiKey } from "@/lib/security/auth";
 
 // Simplified cleanup - just releases vouchers from old PENDING transactions
 export async function POST(request: NextRequest) {
   try {
-    console.log("🧹 Starting cleanup of expired transactions...");
+    // API key authentication (soft validation for now)
+    const hasValidApiKey = verifyApiKey(request);
+    if (!hasValidApiKey) {
+      secureLog("⚠️ SOFT VALIDATION: Cleanup API accessed without valid API key", {
+        ip: getClientIdentifier(request),
+      });
+      // In soft mode, we log but continue
+      // To enable strict mode, uncomment below:
+      // return NextResponse.json(
+      //   { success: false, message: "Unauthorized" },
+      //   { status: 401 }
+      // );
+    }
+
+    // Rate limiting
+    const identifier = getClientIdentifier(request);
+    const rateLimitResult = await rateLimit(identifier, RATE_LIMIT_CONFIGS.cleanupExpired);
+
+    if (!rateLimitResult.success) {
+      secureLog("⚠️ Rate limit exceeded for cleanup", { identifier });
+      return NextResponse.json(
+        { success: false, message: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rateLimitResult.reset - Date.now()) / 1000)),
+          },
+        }
+      );
+    }
+
+    secureLog("🧹 Starting cleanup of expired transactions");
 
     // Find PENDING transactions older than X minutes (configurable via env var)
     const timeoutMinutes = parseInt(process.env.CLEANUP_TIMEOUT_MINUTES || "5");
@@ -13,10 +47,10 @@ export async function POST(request: NextRequest) {
     const expiryDate = new Date(Date.now() - timeoutMinutes * 60 * 1000);
     const expiryTime = expiryDate.toISOString();
 
-    console.log(`⏰ Current time: ${new Date().toISOString()}`);
-    console.log(
-      `⏰ Looking for transactions older than ${timeoutMinutes} minutes (before ${expiryTime})...`
-    );
+    secureLog("⏰ Checking for expired transactions", {
+      timeout_minutes: timeoutMinutes,
+      cutoff_time: expiryTime,
+    });
 
     const { data: expiredTransactions, error: fetchError } = await supabase
       .from("transactions")
@@ -25,24 +59,17 @@ export async function POST(request: NextRequest) {
       .lt("created_at", expiryTime);
 
     if (fetchError) {
-      console.error("❌ Error fetching expired transactions:", fetchError);
+      secureLog("❌ Error fetching expired transactions", { error: fetchError.message });
       return NextResponse.json(
-        { success: false, error: fetchError.message },
+        { success: false, message: "Failed to fetch transactions" },
         { status: 500 }
       );
     }
 
-    console.log(
-      `📊 Query returned ${expiredTransactions?.length || 0} transactions`
-    );
-    if (expiredTransactions && expiredTransactions.length > 0) {
-      console.log(
-        `📋 First transaction: ${JSON.stringify(expiredTransactions[0], null, 2)}`
-      );
-    }
+    secureLog("📊 Query results", { count: expiredTransactions?.length || 0 });
 
     if (!expiredTransactions || expiredTransactions.length === 0) {
-      console.log("✅ No expired transactions found");
+      secureLog("✅ No expired transactions found");
       return NextResponse.json({
         success: true,
         message: "No expired transactions",
@@ -50,7 +77,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(`⚠️ Found ${expiredTransactions.length} expired transactions`);
+    secureLog("⚠️ Found expired transactions", { count: expiredTransactions.length });
 
     let releasedCount = 0;
     const errors = [];
@@ -59,7 +86,7 @@ export async function POST(request: NextRequest) {
     // Process each expired transaction
     for (const tx of expiredTransactions) {
       if (!tx.voucher_code) {
-        console.log(`⏭️ Skipping transaction ${tx.id} - no voucher assigned`);
+        secureLog("⏭️ Skipping transaction - no voucher", { transaction_id: tx.id });
 
         // Mark transaction as EXPIRED even if no voucher
         try {
@@ -69,21 +96,27 @@ export async function POST(request: NextRequest) {
             .eq("id", tx.id);
 
           if (updateError) {
-            console.error(
-              `❌ Failed to mark transaction ${tx.id} as EXPIRED:`,
-              updateError
-            );
+            secureLog("❌ Failed to mark transaction as EXPIRED", {
+              transaction_id: tx.id,
+              error: updateError.message,
+            });
           } else {
-            console.log(`✅ Marked transaction ${tx.id} as EXPIRED`);
+            secureLog("✅ Marked transaction as EXPIRED", { transaction_id: tx.id });
           }
         } catch (err) {
-          console.error(`❌ Error updating transaction ${tx.id}:`, err);
+          secureLog("❌ Error updating transaction", {
+            transaction_id: tx.id,
+            error: err instanceof Error ? err.message : "Unknown error",
+          });
         }
 
         continue;
       }
 
-      console.log(`Processing: ${tx.id} (voucher: ${tx.voucher_code})`);
+      secureLog("Processing transaction", {
+        transaction_id: tx.id,
+        voucher_code: tx.voucher_code,
+      });
 
       try {
         // Release the voucher
@@ -94,17 +127,17 @@ export async function POST(request: NextRequest) {
           .eq("used", true); // Only update if it's currently used
 
         if (voucherError) {
-          console.error(
-            `❌ Failed to release voucher ${tx.voucher_code}:`,
-            voucherError
-          );
+          secureLog("❌ Failed to release voucher", {
+            voucher_code: tx.voucher_code,
+            error: voucherError.message,
+          });
           errors.push({
             transaction_id: tx.id,
             voucher_code: tx.voucher_code,
             error: voucherError.message,
           });
         } else {
-          console.log(`✅ Released voucher: ${tx.voucher_code}`);
+          secureLog("✅ Released voucher", { voucher_code: tx.voucher_code });
 
           // Mark the transaction as EXPIRED instead of deleting it
           const { error: updateError } = await supabase
@@ -113,17 +146,17 @@ export async function POST(request: NextRequest) {
             .eq("id", tx.id);
 
           if (updateError) {
-            console.error(
-              `❌ Failed to mark transaction ${tx.id} as EXPIRED:`,
-              updateError
-            );
+            secureLog("❌ Failed to mark transaction as EXPIRED", {
+              transaction_id: tx.id,
+              error: updateError.message,
+            });
             errors.push({
               transaction_id: tx.id,
               voucher_code: tx.voucher_code,
               error: `Voucher released but failed to mark transaction as EXPIRED: ${updateError.message}`,
             });
           } else {
-            console.log(`✅ Marked transaction ${tx.id} as EXPIRED`);
+            secureLog("✅ Marked transaction as EXPIRED", { transaction_id: tx.id });
           }
 
           releasedCount++;
@@ -136,7 +169,10 @@ export async function POST(request: NextRequest) {
           });
         }
       } catch (err) {
-        console.error(`❌ Error processing transaction ${tx.id}:`, err);
+        secureLog("❌ Error processing transaction", {
+          transaction_id: tx.id,
+          error: err instanceof Error ? err.message : "Unknown error",
+        });
         errors.push({
           transaction_id: tx.id,
           error: err instanceof Error ? err.message : "Unknown error",
@@ -144,9 +180,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(
-      `✅ Cleanup complete: ${releasedCount}/${expiredTransactions.length} vouchers released and transactions marked as EXPIRED`
-    );
+    secureLog("✅ Cleanup complete", {
+      released: releasedCount,
+      total: expiredTransactions.length,
+      errors: errors.length,
+    });
 
     return NextResponse.json({
       success: true,
