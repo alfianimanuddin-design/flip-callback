@@ -156,18 +156,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Delete voucher from vouchers table after successful transaction creation
-    secureLog("🗑️ Attempting to delete voucher", { code: voucher.code });
-    const { error: deleteError } = await supabase
+    // Mark voucher as used (keep it in the table instead of deleting)
+    secureLog("🔄 Marking voucher as used", { code: voucher.code });
+    const { error: updateError } = await supabase
       .from("vouchers")
-      .delete()
+      .update({
+        used: true,
+        // Expiry date will be set by database trigger based on used_at from transaction
+      })
       .eq("code", voucher.code);
 
-    if (deleteError) {
-      secureLog("❌ Error deleting voucher", { error: deleteError.message });
+    if (updateError) {
+      secureLog("❌ Error marking voucher as used", { error: updateError.message });
       // Note: Transaction is already created, so we log but don't rollback
     } else {
-      secureLog("✅ Voucher deleted from vouchers table", { code: voucher.code });
+      secureLog("✅ Voucher marked as used in vouchers table", { code: voucher.code });
     }
 
     secureLog("✅ Voucher assigned successfully", {

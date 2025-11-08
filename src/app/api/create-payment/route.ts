@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 import { rateLimit, RATE_LIMIT_CONFIGS } from "@/lib/security/rate-limit";
 import { getCorsHeaders } from "@/lib/security/cors";
 import {
@@ -8,6 +8,12 @@ import {
 } from "@/lib/security/validation";
 import { secureLog } from "@/lib/security/logger";
 import { getClientIdentifier } from "@/lib/security/auth";
+
+// Initialize Supabase client with service role key for server-side RPC calls
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // Minimum amount for QRIS payments
 const MIN_QRIS_AMOUNT = 1000;
@@ -110,7 +116,6 @@ export async function POST(request: NextRequest) {
     }
 
     let tempId = "";
-    let voucherId = null;
 
     // Check if API key exists
     if (!process.env.FLIP_SECRET_KEY) {
@@ -132,19 +137,19 @@ export async function POST(request: NextRequest) {
       has_discount: hasDiscount,
     });
 
-    // ========== FETCH AND RESERVE VOUCHER ==========
-    const { data: availableVoucher, error: voucherError } = await supabase
+    // ========== FETCH AND RESERVE VOUCHER USING DATABASE FUNCTION ==========
+    // First, peek at available vouchers to get the voucher details
+    const { data: availableVouchers, error: voucherFetchError } = await supabase
       .from("vouchers")
-      .select("*")
+      .select("code, product_name, amount, discounted_amount")
       .eq("product_name", product_name)
       .eq("used", false)
-      .limit(1)
-      .single();
+      .limit(1);
 
-    if (voucherError || !availableVoucher) {
+    if (voucherFetchError || !availableVouchers || availableVouchers.length === 0) {
       secureLog("❌ No available vouchers", {
         product_name,
-        error: voucherError?.message,
+        error: voucherFetchError?.message,
       });
       return NextResponse.json(
         {
@@ -158,54 +163,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const availableVoucher = availableVouchers[0];
     console.log(
-      `🎟️ Found voucher: ${availableVoucher.code} (ID: ${availableVoucher.id})`
+      `🎟️ Found voucher: ${availableVoucher.code}`
     );
-    voucherId = availableVoucher.id;
 
-    // Reserve the voucher immediately
-    const { error: reserveError } = await supabase
-      .from("vouchers")
-      .update({ used: true })
-      .eq("id", availableVoucher.id);
+    // Call the database function to atomically reserve voucher and create transaction
+    const { data: transactionId, error: purchaseError } = await supabase.rpc(
+      "purchase_voucher",
+      {
+        p_email: email,
+        p_name: name,
+        p_voucher_code: availableVoucher.code,
+        p_product_name: availableVoucher.product_name,
+        p_amount: availableVoucher.amount,
+        p_discounted_amount: availableVoucher.discounted_amount,
+      }
+    );
 
-    if (reserveError) {
-      console.error("❌ Error reserving voucher:", reserveError);
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Failed to process request",
-        },
-        {
-          status: 500,
-          headers: corsHeaders,
-        }
-      );
-    }
+    if (purchaseError) {
+      secureLog("❌ Error purchasing voucher", {
+        voucher_code: availableVoucher.code,
+        error: purchaseError.message,
+      });
 
-    console.log(`✅ Voucher reserved: ${availableVoucher.code}`);
-
-    // Create pending transaction
-    tempId = `TEMP-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-
-    const { error: pendingError } = await supabase.from("transactions").insert({
-      temp_id: tempId,
-      name: name,
-      email: email,
-      amount: actualAmount,
-      product_name: product_name,
-      voucher_code: availableVoucher.code,
-      status: "PENDING",
-    });
-
-    if (pendingError) {
-      console.error("❌ Error creating pending transaction:", pendingError);
-
-      // Rollback: Release voucher
-      await supabase
-        .from("vouchers")
-        .update({ used: false })
-        .eq("id", voucherId);
+      // Check if it's a "Voucher not available" error (race condition)
+      if (purchaseError.message.includes("Voucher not available")) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Yah, voucher ${product_name} sudah habis`,
+          },
+          {
+            status: 400,
+            headers: corsHeaders,
+          }
+        );
+      }
 
       return NextResponse.json(
         {
@@ -219,8 +213,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    tempId = transactionId;
     console.log(
-      `📝 Created pending transaction with voucher: ${availableVoucher.code}`
+      `✅ Voucher reserved and transaction created: ${availableVoucher.code} (Transaction ID: ${tempId})`
     );
 
     // Create auth header
@@ -262,12 +257,11 @@ export async function POST(request: NextRequest) {
     } catch (e) {
       console.error("❌ Failed to parse Flip response");
 
-      // Rollback
-      if (voucherId) {
-        await supabase
-          .from("vouchers")
-          .update({ used: false })
-          .eq("id", voucherId);
+      // Cancel the transaction to release the voucher
+      if (tempId) {
+        await supabase.rpc("cancel_transaction", {
+          p_transaction_id: tempId,
+        });
       }
 
       return NextResponse.json(
@@ -286,13 +280,12 @@ export async function POST(request: NextRequest) {
     if (flipData.code === "VALIDATION_ERROR" && flipData.errors) {
       console.error("❌ Flip validation error:", flipData.errors);
 
-      // Rollback: Release voucher
-      if (voucherId) {
-        await supabase
-          .from("vouchers")
-          .update({ used: false })
-          .eq("id", voucherId);
-        console.log("🔓 Voucher released due to validation error");
+      // Cancel the transaction to release the voucher
+      if (tempId) {
+        await supabase.rpc("cancel_transaction", {
+          p_transaction_id: tempId,
+        });
+        console.log("🔓 Transaction cancelled and voucher released due to validation error");
       }
 
       const errorMessage = flipData.errors
@@ -316,12 +309,11 @@ export async function POST(request: NextRequest) {
     if (!paymentUrl) {
       console.error("❌ No payment link returned from Flip");
 
-      // Rollback
-      if (voucherId) {
-        await supabase
-          .from("vouchers")
-          .update({ used: false })
-          .eq("id", voucherId);
+      // Cancel the transaction to release the voucher
+      if (tempId) {
+        await supabase.rpc("cancel_transaction", {
+          p_transaction_id: tempId,
+        });
       }
 
       return NextResponse.json(

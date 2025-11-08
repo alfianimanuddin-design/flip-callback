@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 import { rateLimit, RATE_LIMIT_CONFIGS } from "@/lib/security/rate-limit";
+
+// Initialize Supabase client with service role key
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 import { secureLog } from "@/lib/security/logger";
 import { getClientIdentifier, verifyApiKey } from "@/lib/security/auth";
 
@@ -38,162 +44,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    secureLog("🧹 Starting cleanup of expired transactions");
+    secureLog("🧹 Starting cleanup of expired transactions using database function");
 
-    // Find PENDING transactions older than X minutes (configurable via env var)
-    const timeoutMinutes = parseInt(process.env.CLEANUP_TIMEOUT_MINUTES || "5");
+    // Call the database function to cleanup expired transactions
+    // The function handles finding expired PENDING transactions,
+    // releasing vouchers back to pool, and marking transactions as EXPIRED
+    const { error: cleanupError } = await supabase.rpc("trigger_cleanup_api");
 
-    // Calculate expiry time in milliseconds, then convert to ISO string (UTC)
-    const expiryDate = new Date(Date.now() - timeoutMinutes * 60 * 1000);
-    const expiryTime = expiryDate.toISOString();
-
-    secureLog("⏰ Checking for expired transactions", {
-      timeout_minutes: timeoutMinutes,
-      cutoff_time: expiryTime,
-    });
-
-    const { data: expiredTransactions, error: fetchError } = await supabase
-      .from("transactions")
-      .select("*")
-      .eq("status", "PENDING")
-      .lt("created_at", expiryTime);
-
-    if (fetchError) {
-      secureLog("❌ Error fetching expired transactions", { error: fetchError.message });
+    if (cleanupError) {
+      secureLog("❌ Error running cleanup function", { error: cleanupError.message });
       return NextResponse.json(
-        { success: false, message: "Failed to fetch transactions" },
+        {
+          success: false,
+          message: "Failed to run cleanup",
+          error: cleanupError.message
+        },
         { status: 500 }
       );
     }
 
-    secureLog("📊 Query results", { count: expiredTransactions?.length || 0 });
-
-    if (!expiredTransactions || expiredTransactions.length === 0) {
-      secureLog("✅ No expired transactions found");
-      return NextResponse.json({
-        success: true,
-        message: "No expired transactions",
-        released: 0,
-      });
-    }
-
-    secureLog("⚠️ Found expired transactions", { count: expiredTransactions.length });
-
-    let releasedCount = 0;
-    const errors = [];
-    const released = [];
-
-    // Process each expired transaction
-    for (const tx of expiredTransactions) {
-      if (!tx.voucher_code) {
-        secureLog("⏭️ Skipping transaction - no voucher", { transaction_id: tx.id });
-
-        // Mark transaction as EXPIRED even if no voucher
-        try {
-          const { error: updateError } = await supabase
-            .from("transactions")
-            .update({ status: "EXPIRED" })
-            .eq("id", tx.id);
-
-          if (updateError) {
-            secureLog("❌ Failed to mark transaction as EXPIRED", {
-              transaction_id: tx.id,
-              error: updateError.message,
-            });
-          } else {
-            secureLog("✅ Marked transaction as EXPIRED", { transaction_id: tx.id });
-          }
-        } catch (err) {
-          secureLog("❌ Error updating transaction", {
-            transaction_id: tx.id,
-            error: err instanceof Error ? err.message : "Unknown error",
-          });
-        }
-
-        continue;
-      }
-
-      secureLog("Processing transaction", {
-        transaction_id: tx.id,
-        voucher_code: tx.voucher_code,
-      });
-
-      try {
-        // Release the voucher
-        const { error: voucherError } = await supabase
-          .from("vouchers")
-          .update({ used: false })
-          .eq("code", tx.voucher_code)
-          .eq("used", true); // Only update if it's currently used
-
-        if (voucherError) {
-          secureLog("❌ Failed to release voucher", {
-            voucher_code: tx.voucher_code,
-            error: voucherError.message,
-          });
-          errors.push({
-            transaction_id: tx.id,
-            voucher_code: tx.voucher_code,
-            error: voucherError.message,
-          });
-        } else {
-          secureLog("✅ Released voucher", { voucher_code: tx.voucher_code });
-
-          // Mark the transaction as EXPIRED instead of deleting it
-          const { error: updateError } = await supabase
-            .from("transactions")
-            .update({ status: "EXPIRED" })
-            .eq("id", tx.id);
-
-          if (updateError) {
-            secureLog("❌ Failed to mark transaction as EXPIRED", {
-              transaction_id: tx.id,
-              error: updateError.message,
-            });
-            errors.push({
-              transaction_id: tx.id,
-              voucher_code: tx.voucher_code,
-              error: `Voucher released but failed to mark transaction as EXPIRED: ${updateError.message}`,
-            });
-          } else {
-            secureLog("✅ Marked transaction as EXPIRED", { transaction_id: tx.id });
-          }
-
-          releasedCount++;
-          released.push({
-            transaction_id: tx.id,
-            voucher_code: tx.voucher_code,
-            age_minutes: Math.round(
-              (Date.now() - new Date(tx.created_at).getTime()) / 60000
-            ),
-          });
-        }
-      } catch (err) {
-        secureLog("❌ Error processing transaction", {
-          transaction_id: tx.id,
-          error: err instanceof Error ? err.message : "Unknown error",
-        });
-        errors.push({
-          transaction_id: tx.id,
-          error: err instanceof Error ? err.message : "Unknown error",
-        });
-      }
-    }
-
-    secureLog("✅ Cleanup complete", {
-      released: releasedCount,
-      total: expiredTransactions.length,
-      errors: errors.length,
-    });
+    secureLog("✅ Cleanup function executed successfully");
 
     return NextResponse.json({
       success: true,
-      message: `Released ${releasedCount} vouchers and marked ${expiredTransactions.length} transactions as EXPIRED`,
-      total_found: expiredTransactions.length,
-      released: releasedCount,
-      expired: expiredTransactions.length,
-      released_vouchers: released,
-      errors: errors.length > 0 ? errors : undefined,
+      message: "Cleanup completed successfully - expired transactions processed and vouchers released",
+      note: "The database function handles finding expired PENDING transactions (older than 30 minutes), releasing vouchers, and marking transactions as EXPIRED",
     });
   } catch (error) {
     console.error("❌ Cleanup error:", error);
@@ -210,12 +85,13 @@ export async function POST(request: NextRequest) {
 
 // Allow GET requests to check endpoint status
 export async function GET() {
-  const timeoutMinutes = parseInt(process.env.CLEANUP_TIMEOUT_MINUTES || "5");
   return NextResponse.json({
     message: "Cleanup endpoint is active",
     description:
-      "POST to this endpoint to release vouchers from expired transactions",
-    timeout_minutes: timeoutMinutes,
-    note: `Vouchers from PENDING transactions older than ${timeoutMinutes} minutes will be released`,
+      "POST to this endpoint to manually trigger the cleanup function",
+    automated: "This cleanup runs automatically every 5 minutes via pg_cron",
+    function: "trigger_cleanup_api()",
+    behavior: "Finds expired PENDING transactions (older than 30 minutes), releases vouchers back to pool, and marks transactions as EXPIRED",
+    note: "Manual cleanup is optional - the database handles this automatically",
   });
 }

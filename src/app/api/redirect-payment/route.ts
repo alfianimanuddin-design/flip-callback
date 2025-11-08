@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+// Initialize Supabase client with service role key
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,6 +29,31 @@ export async function GET(request: NextRequest) {
         )
       );
     }
+
+    // Validate transaction before proceeding
+    console.log(`🔍 Validating transaction: ${transaction_id}`);
+    const { data: isValid, error: validationError } = await supabase.rpc(
+      "validate_transaction_before_payment",
+      {
+        p_transaction_id: transaction_id,
+      }
+    );
+
+    if (validationError) {
+      console.error("❌ Error validating transaction:", validationError.message);
+    }
+
+    if (!isValid) {
+      console.error("❌ Transaction is invalid or expired");
+      return NextResponse.redirect(
+        new URL(
+          "https://jajan.flip.id/error?message=transaction_expired_or_invalid",
+          request.url
+        )
+      );
+    }
+
+    console.log("✅ Transaction is valid and pending");
 
     // Find the transaction and wait for webhook to process
     let transaction = null;

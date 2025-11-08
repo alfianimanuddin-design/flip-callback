@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+
+// Initialize Supabase client with service role key
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 import { verifyFlipWebhook } from "@/lib/security/webhook-verification";
 import { secureLog, logSecurityEvent } from "@/lib/security/logger";
 import { getClientIp } from "@/lib/security/auth";
@@ -152,72 +158,27 @@ export async function POST(request: NextRequest) {
 
         let voucherToSend = null;
 
-        // Get a voucher if not already assigned
-        if (!existingTx.voucher_code) {
-          const productName = existingTx.product_name;
-          console.log(`🔍 Looking for voucher for product: ${productName}`);
+        // Use the complete_transaction database function
+        const transactionIdToComplete = existingTx.transaction_id || existingTx.temp_id;
+        const { error: completeError } = await supabase.rpc("complete_transaction", {
+          p_transaction_id: transactionIdToComplete,
+          p_bill_link_id: bill_link_id,
+        });
 
-          let voucherQuery = supabase
-            .from("vouchers")
-            .select("code, product_name, amount, discounted_amount")
-            .eq("used", false);
+        if (completeError) {
+          console.error("❌ Error completing transaction:", completeError.message);
 
-          if (productName) {
-            voucherQuery = voucherQuery.eq("product_name", productName);
-          }
-
-          const { data: voucher, error: voucherError } = await voucherQuery
-            .limit(1)
-            .single();
-
-          if (voucher && !voucherError) {
-            console.log(`🎟️ Found voucher: ${voucher.code}`);
-
-            // Mark voucher as used
-            const now = new Date();
-            const expiryDate = new Date(now);
-            expiryDate.setDate(expiryDate.getDate() + 30);
-
-            const { error: voucherUpdateError } = await supabase
-              .from("vouchers")
-              .update({
-                used: true,
-                expiry_date: expiryDate.toISOString(),
-              })
-              .eq("code", voucher.code)
-              .eq("used", false);
-
-            if (voucherUpdateError) {
-              console.error("❌ Error updating voucher:", voucherUpdateError);
-            }
-
-            // Update transaction with voucher and status
-            const { error: txUpdateError } = await supabase
-              .from("transactions")
-              .update({
-                status: "SUCCESSFUL",
-                voucher_code: voucher.code,
-                bill_link_id: bill_link_id,
-              })
-              .eq("id", existingTx.id);
-
-            if (txUpdateError) {
-              console.error("❌ Error updating transaction:", txUpdateError);
-            } else {
-              console.log(
-                `✅ Transaction ${existingTx.id} updated to SUCCESSFUL with voucher: ${voucher.code}`
-              );
-            }
-
-            voucherToSend = voucher;
-          } else {
-            console.log("⚠️ No voucher available");
+          // Handle "Transaction not found or already processed" error
+          if (completeError.message.includes("not found") || completeError.message.includes("already processed")) {
+            console.log("⚠️ Transaction already processed or not found");
           }
         } else {
-          // Voucher already exists, fetch it for email
-          console.log(
-            `🎟️ Transaction already has voucher: ${existingTx.voucher_code}`
-          );
+          console.log(`✅ Transaction ${existingTx.id} completed successfully using database function`);
+        }
+
+        // Fetch voucher details for email
+        if (existingTx.voucher_code) {
+          console.log(`🎟️ Transaction has voucher: ${existingTx.voucher_code}`);
 
           const { data: existingVoucher, error: fetchVoucherError } =
             await supabase
@@ -257,21 +218,8 @@ export async function POST(request: NextRequest) {
             };
             console.log("⚠️ Using fallback voucher data for email");
           }
-        }
-
-        // Update status even if no voucher available or already assigned
-        const { error: statusUpdateError } = await supabase
-          .from("transactions")
-          .update({
-            status: "SUCCESSFUL",
-            bill_link_id: bill_link_id,
-          })
-          .eq("id", existingTx.id);
-
-        if (statusUpdateError) {
-          console.error("❌ Error updating status:", statusUpdateError);
         } else {
-          console.log(`✅ Transaction ${existingTx.id} updated to SUCCESSFUL`);
+          console.log("⚠️ No voucher assigned to transaction");
         }
 
         // Send email if we have a voucher (including fallback)
@@ -317,49 +265,25 @@ export async function POST(request: NextRequest) {
         ].includes(status)
       ) {
         console.log(
-          `⚠️ Payment ${status} detected - Attempting to release voucher for transaction: ${existingTx.id}`
+          `⚠️ Payment ${status} detected - Cancelling transaction: ${existingTx.id}`
         );
 
-        // Check if there's a voucher to release
-        if (existingTx.voucher_code) {
-          console.log(`🔓 Releasing voucher: ${existingTx.voucher_code}`);
+        // Use cancel_transaction database function to handle both voucher release and status update
+        const transactionIdToCancel = existingTx.transaction_id || existingTx.temp_id;
+        const { error: cancelError } = await supabase.rpc("cancel_transaction", {
+          p_transaction_id: transactionIdToCancel,
+        });
 
-          // Release the voucher
-          const { error: voucherReleaseError } = await supabase
-            .from("vouchers")
-            .update({ used: false })
-            .eq("code", existingTx.voucher_code);
+        if (cancelError) {
+          console.error("❌ Failed to cancel transaction:", cancelError.message);
 
-          if (voucherReleaseError) {
-            console.error("❌ Failed to release voucher:", voucherReleaseError);
-          } else {
-            console.log(
-              `✅ Successfully released voucher: ${existingTx.voucher_code}`
-            );
+          // Handle error - transaction may not exist or cannot be cancelled
+          if (cancelError.message.includes("not found") || cancelError.message.includes("cannot be cancelled")) {
+            console.log("⚠️ Transaction not found or already processed");
           }
         } else {
           console.log(
-            "ℹ️ No voucher assigned to this transaction, nothing to release"
-          );
-        }
-
-        // Update transaction status to reflect the failure
-        const { error: statusUpdateError } = await supabase
-          .from("transactions")
-          .update({
-            status: status,
-            bill_link_id: bill_link_id,
-          })
-          .eq("id", existingTx.id);
-
-        if (statusUpdateError) {
-          console.error(
-            "❌ Error updating transaction status:",
-            statusUpdateError
-          );
-        } else {
-          console.log(
-            `✅ Transaction ${existingTx.id} updated to status: ${status}`
+            `✅ Transaction cancelled successfully - voucher released and status updated to CANCELLED`
           );
         }
 
@@ -371,32 +295,6 @@ export async function POST(request: NextRequest) {
         });
       }
       // ========== END FAILED/CANCELLED/EXPIRED HANDLING ==========
-
-      // If status is already SUCCESSFUL, just ensure voucher has expiry
-      if (status === "SUCCESSFUL" && existingTx.voucher_code) {
-        const { data: voucherCheck } = await supabase
-          .from("vouchers")
-          .select("expiry_date")
-          .eq("code", existingTx.voucher_code)
-          .single();
-
-        if (voucherCheck && !voucherCheck.expiry_date) {
-          const now = new Date();
-          const expiryDate = new Date(now);
-          expiryDate.setDate(expiryDate.getDate() + 30);
-
-          await supabase
-            .from("vouchers")
-            .update({
-              expiry_date: expiryDate.toISOString(),
-            })
-            .eq("code", existingTx.voucher_code);
-
-          console.log(
-            `✅ Updated expiry for voucher: ${existingTx.voucher_code}`
-          );
-        }
-      }
 
       console.log(
         `✅ Transaction already processed with status: ${existingTx.status}`
@@ -438,38 +336,24 @@ export async function POST(request: NextRequest) {
         .limit(1)
         .maybeSingle();
 
-      if (pendingTxForFailure && pendingTxForFailure.voucher_code) {
+      if (pendingTxForFailure) {
         console.log(
-          `🔓 Found pending transaction ${pendingTxForFailure.id} - Releasing voucher: ${pendingTxForFailure.voucher_code}`
+          `🔓 Found pending transaction ${pendingTxForFailure.id} - Cancelling via database function`
         );
 
-        // Release the voucher
-        const { error: releaseError } = await supabase
-          .from("vouchers")
-          .update({ used: false })
-          .eq("code", pendingTxForFailure.voucher_code);
+        // Use cancel_transaction database function
+        const transactionIdToCancel = pendingTxForFailure.transaction_id || pendingTxForFailure.temp_id;
+        const { error: cancelError } = await supabase.rpc("cancel_transaction", {
+          p_transaction_id: transactionIdToCancel,
+        });
 
-        if (releaseError) {
-          console.error("❌ Failed to release voucher:", releaseError);
+        if (cancelError) {
+          console.error("❌ Failed to cancel transaction:", cancelError.message);
         } else {
           console.log(
-            `✅ Successfully released voucher: ${pendingTxForFailure.voucher_code}`
+            `✅ Transaction cancelled successfully - voucher released and status updated`
           );
         }
-
-        // Update transaction status
-        await supabase
-          .from("transactions")
-          .update({
-            status: status,
-            transaction_id: transactionId,
-            bill_link_id: bill_link_id,
-          })
-          .eq("id", pendingTxForFailure.id);
-
-        console.log(
-          `✅ Updated transaction ${pendingTxForFailure.id} to ${status}`
-        );
 
         return NextResponse.json({
           success: true,
