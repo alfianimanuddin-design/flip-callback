@@ -12,10 +12,10 @@ import { getClientIdentifier } from "@/lib/security/auth";
 // Minimum amount for QRIS payments
 const MIN_QRIS_AMOUNT = 1000;
 
-// Function to calculate expired date (current time + 10 minutes)
+// Function to calculate expired date (current time + 30 minutes)
 function getExpiredDate(): string {
   const now = new Date();
-  const expiredDate = new Date(now.getTime() + 10 * 60 * 1000);
+  const expiredDate = new Date(now.getTime() + 30 * 60 * 1000);
 
   // Convert to Indonesian time (WIB/UTC+7)
   const wibOffset = 7 * 60;
