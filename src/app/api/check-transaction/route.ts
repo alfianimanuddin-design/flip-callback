@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+// Initialize Supabase client with service role key
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 import { rateLimit, RATE_LIMIT_CONFIGS } from "@/lib/security/rate-limit";
 import { getCorsHeaders } from "@/lib/security/cors";
 import { secureLog } from "@/lib/security/logger";

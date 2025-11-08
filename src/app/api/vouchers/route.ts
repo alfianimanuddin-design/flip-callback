@@ -16,18 +16,16 @@ export async function GET(request: NextRequest) {
   const corsHeaders = getCorsHeaders(origin);
 
   try {
-    // API key authentication (soft validation for now)
+    // API key authentication (strict mode enabled)
     const hasValidApiKey = verifyApiKey(request);
     if (!hasValidApiKey) {
-      secureLog("⚠️ SOFT VALIDATION: Vouchers API accessed without valid API key", {
+      secureLog("⚠️ Vouchers API accessed without valid API key", {
         ip: getClientIdentifier(request),
       });
-      // In soft mode, we log but continue
-      // To enable strict mode, uncomment below:
-      // return NextResponse.json(
-      //   { success: false, message: "Unauthorized" },
-      //   { status: 401, headers: corsHeaders }
-      // );
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401, headers: corsHeaders }
+      );
     }
 
     // Rate limiting

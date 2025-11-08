@@ -13,18 +13,16 @@ import { getClientIdentifier, verifyApiKey } from "@/lib/security/auth";
 // Simplified cleanup - just releases vouchers from old PENDING transactions
 export async function POST(request: NextRequest) {
   try {
-    // API key authentication (soft validation for now)
+    // API key authentication (strict mode enabled)
     const hasValidApiKey = verifyApiKey(request);
     if (!hasValidApiKey) {
-      secureLog("⚠️ SOFT VALIDATION: Cleanup API accessed without valid API key", {
+      secureLog("⚠️ Cleanup API accessed without valid API key", {
         ip: getClientIdentifier(request),
       });
-      // In soft mode, we log but continue
-      // To enable strict mode, uncomment below:
-      // return NextResponse.json(
-      //   { success: false, message: "Unauthorized" },
-      //   { status: 401 }
-      // );
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     // Rate limiting
