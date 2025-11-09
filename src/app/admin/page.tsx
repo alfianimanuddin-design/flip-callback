@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import AddVoucherForm from "./add-voucher/page";
+import StatisticsDashboard from "@/src/components/AdminDashboard";
 
 interface Voucher {
   id: string;
@@ -36,6 +37,8 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [showAddVoucher, setShowAddVoucher] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState<'transactions' | 'statistics'>('statistics');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const itemsPerPage = 10;
   const router = useRouter();
 
@@ -109,6 +112,12 @@ export default function AdminDashboard() {
     await supabase.auth.signOut();
     router.push("/admin/login");
     router.refresh();
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchData();
+    setIsRefreshing(false);
   };
 
   const filteredTransactions = transactions.filter((tx) => {
@@ -241,60 +250,141 @@ export default function AdminDashboard() {
               </p>
             )}
           </div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              style={{
+                padding: "12px 24px",
+                backgroundColor: "rgba(255,255,255,0.2)",
+                color: "white",
+                border: "2px solid white",
+                borderRadius: "8px",
+                fontSize: "16px",
+                fontWeight: "600",
+                cursor: isRefreshing ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
+                opacity: isRefreshing ? 0.7 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isRefreshing) {
+                  e.currentTarget.style.backgroundColor = "white";
+                  e.currentTarget.style.color = "#10b981";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isRefreshing) {
+                  e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.2)";
+                  e.currentTarget.style.color = "white";
+                }
+              }}
+            >
+              {isRefreshing ? "🔄 Refreshing..." : "🔄 Refresh Data"}
+            </button>
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: "12px 24px",
+                backgroundColor: "rgba(255,255,255,0.2)",
+                color: "white",
+                border: "2px solid white",
+                borderRadius: "8px",
+                fontSize: "16px",
+                fontWeight: "600",
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "white";
+                e.currentTarget.style.color = "#667eea";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.2)";
+                e.currentTarget.style.color = "white";
+              }}
+            >
+              🚪 Logout
+            </button>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div
+          style={{
+            marginBottom: "30px",
+            display: "flex",
+            gap: "12px",
+            borderBottom: "2px solid rgba(255,255,255,0.2)",
+            paddingBottom: "0",
+          }}
+        >
           <button
-            onClick={handleLogout}
+            onClick={() => setActiveTab('statistics')}
             style={{
               padding: "12px 24px",
-              backgroundColor: "rgba(255,255,255,0.2)",
-              color: "white",
-              border: "2px solid white",
-              borderRadius: "8px",
+              backgroundColor: activeTab === 'statistics' ? "white" : "transparent",
+              color: activeTab === 'statistics' ? "#667eea" : "white",
+              border: "none",
+              borderRadius: "8px 8px 0 0",
               fontSize: "16px",
               fontWeight: "600",
               cursor: "pointer",
               transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "white";
-              e.currentTarget.style.color = "#667eea";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.2)";
-              e.currentTarget.style.color = "white";
+              borderBottom: activeTab === 'statistics' ? "3px solid #667eea" : "3px solid transparent",
             }}
           >
-            🚪 Logout
+            📈 Dashboard
+          </button>
+          <button
+            onClick={() => setActiveTab('transactions')}
+            style={{
+              padding: "12px 24px",
+              backgroundColor: activeTab === 'transactions' ? "white" : "transparent",
+              color: activeTab === 'transactions' ? "#667eea" : "white",
+              border: "none",
+              borderRadius: "8px 8px 0 0",
+              fontSize: "16px",
+              fontWeight: "600",
+              cursor: "pointer",
+              transition: "all 0.2s",
+              borderBottom: activeTab === 'transactions' ? "3px solid #667eea" : "3px solid transparent",
+            }}
+          >
+            📊 Transactions & Vouchers
           </button>
         </div>
 
-        {/* Stats Cards */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-            gap: "24px",
-            marginBottom: "40px",
-          }}
-        >
-          <StatCard
-            title="Total Vouchers"
-            value={voucherData.total}
-            icon="🎟️"
-            color="#4F46E5"
-          />
-          <StatCard
-            title="Redeemed Vouchers"
-            value={voucherData.used}
-            icon="✅"
-            color="#F59E0B"
-          />
-          <StatCard
-            title="Available Vouchers"
-            value={voucherData.available}
-            icon="💚"
-            color="#10B981"
-          />
-        </div>
+        {/* Transactions & Vouchers Tab Content */}
+        {activeTab === 'transactions' && (
+          <>
+            {/* Stats Cards */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+                gap: "24px",
+                marginBottom: "40px",
+              }}
+            >
+              <StatCard
+                title="Total Vouchers"
+                value={voucherData.total}
+                icon="🎟️"
+                color="#4F46E5"
+              />
+              <StatCard
+                title="Redeemed Vouchers"
+                value={voucherData.used}
+                icon="✅"
+                color="#F59E0B"
+              />
+              <StatCard
+                title="Available Vouchers"
+                value={voucherData.available}
+                icon="💚"
+                color="#10B981"
+              />
+            </div>
 
         {/* Available Vouchers Section */}
         <div
@@ -707,7 +797,7 @@ export default function AdminDashboard() {
                             color: "#111827",
                           }}
                         >
-                          Rp{tx.amount?.toLocaleString("id-ID")}
+                          Rp{(tx.discounted_amount || tx.amount)?.toLocaleString("id-ID")}
                         </span>
                       </td>
                       <td style={tableCellStyle}>
@@ -965,6 +1055,20 @@ export default function AdminDashboard() {
                 existingProductNames={existingProductNames}
               />
             </div>
+          </div>
+        )}
+          </>
+        )}
+
+        {/* Statistics Dashboard Tab Content */}
+        {activeTab === 'statistics' && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '20px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          }}>
+            <StatisticsDashboard />
           </div>
         )}
       </div>
