@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { rateLimit, RATE_LIMIT_CONFIGS } from "@/lib/security/rate-limit";
 import { getCorsHeaders } from "@/lib/security/cors";
 import { secureLog } from "@/lib/security/logger";
-import { getClientIdentifier, verifyApiKey } from "@/lib/security/auth";
+import { getClientIdentifier } from "@/lib/security/auth";
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -16,19 +16,7 @@ export async function GET(request: NextRequest) {
   const corsHeaders = getCorsHeaders(origin);
 
   try {
-    // API key authentication (strict mode enabled)
-    const hasValidApiKey = verifyApiKey(request);
-    if (!hasValidApiKey) {
-      secureLog("⚠️ Vouchers API accessed without valid API key", {
-        ip: getClientIdentifier(request),
-      });
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401, headers: corsHeaders }
-      );
-    }
-
-    // Rate limiting
+    // Rate limiting (no API key required for public voucher listing)
     const identifier = getClientIdentifier(request);
     const rateLimitResult = await rateLimit(identifier, RATE_LIMIT_CONFIGS.default);
 

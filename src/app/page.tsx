@@ -36,9 +36,7 @@ export default function VoucherSelection() {
   const fetchVouchers = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        "https://flip-callback.vercel.app/api/vouchers"
-      );
+      const response = await fetch("/api/vouchers");
       const data = await response.json();
 
       if (data.success) {
@@ -99,14 +97,12 @@ export default function VoucherSelection() {
 
     try {
       // Create payment
-      const response = await fetch(
-        "https://flip-callback.vercel.app/api/create-payment",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+      const response = await fetch("/api/create-payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
             amount: selectedVoucher.amount,
             discounted_amount: selectedVoucher.discounted_amount,
             email: email,
@@ -211,6 +207,18 @@ export default function VoucherSelection() {
 
       {/* Main Content */}
       <div className="pt-28 px-4 pb-24">
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <p className="text-sm text-red-600 font-semibold">{error}</p>
+            <button
+              onClick={fetchVouchers}
+              className="mt-2 text-sm text-red-700 underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
         {/* Limited Voucher Banner */}
         <div className="bg-linear-to-r from-[#423005] to-[#a87a0d] rounded-t-3xl px-5 py-3 shadow-lg">
           <p className="text-sm font-bold text-white">Voucher terbatas 🔥</p>
