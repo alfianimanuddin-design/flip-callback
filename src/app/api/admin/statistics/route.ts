@@ -95,12 +95,10 @@ export async function GET(request: Request) {
       .sort((a: any, b: any) => b.revenue - a.revenue)
       .slice(0, 5);
 
-    // Calculate daily transaction status for the last 7 days (Jakarta timezone)
+    // Calculate daily transaction status for the last 7 days
     const dailyStats = [];
     for (let i = 6; i >= 0; i--) {
-      // Get current date in Jakarta timezone
-      const jakartaDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' });
-      const date = new Date(jakartaDate);
+      const date = new Date();
       date.setDate(date.getDate() - i);
       date.setHours(0, 0, 0, 0);
 
@@ -108,13 +106,16 @@ export async function GET(request: Request) {
       nextDate.setDate(nextDate.getDate() + 1);
 
       const dayTransactions = transactions?.filter((t) => {
-        // Convert transaction timestamp to Jakarta timezone for comparison
-        const createdAtJakarta = new Date(new Date(t.created_at).toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
-        return createdAtJakarta >= date && createdAtJakarta < nextDate;
+        const createdAt = new Date(t.created_at);
+        return createdAt >= date && createdAt < nextDate;
       }) || [];
 
+      // Format date label in Jakarta timezone (add 7 hours to display)
+      const jakartaDate = new Date(date.getTime() + (7 * 60 * 60 * 1000));
+      const dateLabel = jakartaDate.toISOString().split('T')[0];
+
       dailyStats.push({
-        date: date.toISOString().split('T')[0],
+        date: dateLabel,
         total: dayTransactions.length,
         successful: dayTransactions.filter((t) => t.status === 'SUCCESSFUL').length,
         pending: dayTransactions.filter((t) => t.status === 'PENDING').length,
@@ -125,15 +126,10 @@ export async function GET(request: Request) {
       });
     }
 
-    // Calculate hourly distribution (for traffic patterns) in Jakarta timezone
+    // Calculate hourly distribution (for traffic patterns)
     const hourlyDistribution = Array(24).fill(0);
     transactions?.forEach((t) => {
-      const jakartaTime = new Date(t.created_at).toLocaleString('en-US', {
-        timeZone: 'Asia/Jakarta',
-        hour: 'numeric',
-        hour12: false
-      });
-      const hour = parseInt(jakartaTime.split(',')[1]?.trim().split(':')[0] || '0');
+      const hour = new Date(t.created_at).getHours();
       hourlyDistribution[hour]++;
     });
 
