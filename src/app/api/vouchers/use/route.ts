@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
         voucher_code: voucher.code,
         email: user_email,
         name: name || user_email.split("@")[0],
-        amount: voucher.discounted_amount,
+        amount: voucher.amount,
         discounted_amount: voucher.discounted_amount,
         product_name: voucher.product_name,
         status: "SUCCESSFUL",
