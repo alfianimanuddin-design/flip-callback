@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
         p_name: name,
         p_voucher_code: availableVoucher.code,
         p_product_name: availableVoucher.product_name,
-        p_amount: availableVoucher.amount,
+        p_amount: availableVoucher.discounted_amount,
         p_discounted_amount: availableVoucher.discounted_amount,
       }
     );
