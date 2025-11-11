@@ -411,7 +411,7 @@ export async function POST(request: NextRequest) {
                                                     Berlaku Sampai
                                                 </td>
                                                 <td width="50%" class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07 !important; text-align: right; padding: 8px 0; -webkit-text-fill-color: #543d07 !important;">
-                                                    ${expiryDate}
+                                                    3 Mei 2026
                                                 </td>
                                             </tr>
                                         </table>
