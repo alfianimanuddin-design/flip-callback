@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
     const emailResult = await resend.emails.send({
       from: "noreply@jajan.flip.id",
       to: transaction.email,
-      subject: "Kode Voucher Kopi Kenangan - Dikirim Ulang",
+      subject: "Kode Voucher Kopi Kenangan",
       html: `<!DOCTYPE html>
 <html lang="en">
 <head>
