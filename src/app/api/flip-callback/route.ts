@@ -36,7 +36,9 @@ export async function POST(request: NextRequest) {
 
     // SOFT VALIDATION: Log results but continue processing
     if (!signature) {
-      console.warn("⚠️ SOFT VALIDATION: Webhook missing signature - would normally reject with 401");
+      console.warn(
+        "⚠️ SOFT VALIDATION: Webhook missing signature - would normally reject with 401"
+      );
       logSecurityEvent("WEBHOOK_MISSING_SIGNATURE_SOFT", {
         ip: getClientIp(request),
         mode: "soft_validation",
@@ -47,7 +49,9 @@ export async function POST(request: NextRequest) {
       // Verify signature
       const isValid = verifyFlipWebhook(rawBody, signature);
       if (!isValid) {
-        console.warn("⚠️ SOFT VALIDATION: Invalid webhook signature - would normally reject with 403");
+        console.warn(
+          "⚠️ SOFT VALIDATION: Invalid webhook signature - would normally reject with 403"
+        );
         logSecurityEvent("WEBHOOK_INVALID_SIGNATURE_SOFT", {
           ip: getClientIp(request),
           mode: "soft_validation",
@@ -159,21 +163,33 @@ export async function POST(request: NextRequest) {
         let voucherToSend = null;
 
         // Use the complete_transaction database function
-        const transactionIdToComplete = existingTx.transaction_id || existingTx.temp_id;
-        const { error: completeError } = await supabase.rpc("complete_transaction", {
-          p_transaction_id: transactionIdToComplete,
-          p_bill_link_id: bill_link_id,
-        });
+        const transactionIdToComplete =
+          existingTx.transaction_id || existingTx.temp_id;
+        const { error: completeError } = await supabase.rpc(
+          "complete_transaction",
+          {
+            p_transaction_id: transactionIdToComplete,
+            p_bill_link_id: bill_link_id,
+          }
+        );
 
         if (completeError) {
-          console.error("❌ Error completing transaction:", completeError.message);
+          console.error(
+            "❌ Error completing transaction:",
+            completeError.message
+          );
 
           // Handle "Transaction not found or already processed" error
-          if (completeError.message.includes("not found") || completeError.message.includes("already processed")) {
+          if (
+            completeError.message.includes("not found") ||
+            completeError.message.includes("already processed")
+          ) {
             console.log("⚠️ Transaction already processed or not found");
           }
         } else {
-          console.log(`✅ Transaction ${existingTx.id} completed successfully using database function`);
+          console.log(
+            `✅ Transaction ${existingTx.id} completed successfully using database function`
+          );
         }
 
         // Fetch voucher details for email
@@ -269,16 +285,26 @@ export async function POST(request: NextRequest) {
         );
 
         // Use cancel_transaction database function to handle both voucher release and status update
-        const transactionIdToCancel = existingTx.transaction_id || existingTx.temp_id;
-        const { error: cancelError } = await supabase.rpc("cancel_transaction", {
-          p_transaction_id: transactionIdToCancel,
-        });
+        const transactionIdToCancel =
+          existingTx.transaction_id || existingTx.temp_id;
+        const { error: cancelError } = await supabase.rpc(
+          "cancel_transaction",
+          {
+            p_transaction_id: transactionIdToCancel,
+          }
+        );
 
         if (cancelError) {
-          console.error("❌ Failed to cancel transaction:", cancelError.message);
+          console.error(
+            "❌ Failed to cancel transaction:",
+            cancelError.message
+          );
 
           // Handle error - transaction may not exist or cannot be cancelled
-          if (cancelError.message.includes("not found") || cancelError.message.includes("cannot be cancelled")) {
+          if (
+            cancelError.message.includes("not found") ||
+            cancelError.message.includes("cannot be cancelled")
+          ) {
             console.log("⚠️ Transaction not found or already processed");
           }
         } else {
@@ -342,13 +368,20 @@ export async function POST(request: NextRequest) {
         );
 
         // Use cancel_transaction database function
-        const transactionIdToCancel = pendingTxForFailure.transaction_id || pendingTxForFailure.temp_id;
-        const { error: cancelError } = await supabase.rpc("cancel_transaction", {
-          p_transaction_id: transactionIdToCancel,
-        });
+        const transactionIdToCancel =
+          pendingTxForFailure.transaction_id || pendingTxForFailure.temp_id;
+        const { error: cancelError } = await supabase.rpc(
+          "cancel_transaction",
+          {
+            p_transaction_id: transactionIdToCancel,
+          }
+        );
 
         if (cancelError) {
-          console.error("❌ Failed to cancel transaction:", cancelError.message);
+          console.error(
+            "❌ Failed to cancel transaction:",
+            cancelError.message
+          );
         } else {
           console.log(
             `✅ Transaction cancelled successfully - voucher released and status updated`
@@ -873,7 +906,7 @@ async function sendVoucherEmail(
                                                     Nilai Voucher
                                                 </td>
                                                 <td width="50%" class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07 !important; text-align: right; padding: 8px 0; -webkit-text-fill-color: #543d07 !important;">
-                                                    Rp ${voucher.amount}
+                                                    Rp${(voucher.amount || voucher.amount).toLocaleString("id-ID")}
                                                 </td>
                                             </tr>
                                         </table>
@@ -885,7 +918,7 @@ async function sendVoucherEmail(
                                                     Harga Voucher
                                                 </td>
                                                 <td width="50%" class="text-brown" style="font-family: 'Proxima Nova', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #543d07 !important; text-align: right; padding: 8px 0; -webkit-text-fill-color: #543d07 !important;">
-                                                    Rp ${(voucher.discounted_amount || voucher.amount).toLocaleString("id-ID")}
+                                                    Rp${(voucher.discounted_amount || voucher.amount).toLocaleString("id-ID")}
                                                 </td>
                                             </tr>
                                         </table>
@@ -977,7 +1010,7 @@ async function sendVoucherEmail(
                                                         Redeem di Outlet
                                                     </h4>
                                                     <p class="text-gray" style="margin: 0; font-family: 'Proxima Nova', Arial, sans-serif; font-size: 14px; color: #747474 !important; line-height: 22px; -webkit-text-fill-color: #747474 !important;">
-                                                        Tunjukkan kode voucher yang sudah kamu ke kasir. Kamu bisa cek kode vouchermu lewat email atau galeri.
+                                                        Tunjukkan kode voucher yang kamu dapatkan ke kasir. Kamu bisa cek kode vouchermu lewat email atau galeri.
                                                     </p>
                                                 </td>
                                             </tr>
