@@ -18,6 +18,11 @@ const supabase = createClient(
 // Minimum amount for QRIS payments
 const MIN_QRIS_AMOUNT = 1000;
 
+// Anti-spam configuration
+const MAX_PENDING_TRANSACTIONS_PER_EMAIL = 2; // Maximum pending transactions per email
+const MAX_TRANSACTIONS_PER_HOUR_PER_EMAIL = 5; // Maximum transactions created per hour per email
+const COOLDOWN_AFTER_EXPIRED_MINUTES = 10; // Cooldown period after expired transactions
+
 // Function to calculate expired date (current time + 30 minutes)
 function getExpiredDate(): string {
   const now = new Date();
@@ -136,6 +141,111 @@ export async function POST(request: NextRequest) {
       amount: actualAmount,
       has_discount: hasDiscount,
     });
+
+    // ========== ANTI-SPAM CHECKS ==========
+    // 1. Check pending transactions for this email
+    const { count: pendingCount } = await supabase
+      .from("transactions")
+      .select("*", { count: "exact", head: true })
+      .eq("email", email)
+      .eq("status", "PENDING");
+
+    if (pendingCount && pendingCount >= MAX_PENDING_TRANSACTIONS_PER_EMAIL) {
+      secureLog("⚠️ Too many pending transactions", { email, count: pendingCount });
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Kamu memiliki ${pendingCount} transaksi pending. Harap selesaikan pembayaran atau tunggu transaksi expired sebelum membuat transaksi baru.`,
+        },
+        {
+          status: 429,
+          headers: corsHeaders,
+        }
+      );
+    }
+
+    // 2. Check transaction creation rate (per hour)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentCount } = await supabase
+      .from("transactions")
+      .select("*", { count: "exact", head: true })
+      .eq("email", email)
+      .gte("created_at", oneHourAgo);
+
+    if (recentCount && recentCount >= MAX_TRANSACTIONS_PER_HOUR_PER_EMAIL) {
+      secureLog("⚠️ Too many transactions per hour", { email, count: recentCount });
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Terlalu banyak transaksi dalam 1 jam. Silakan coba lagi nanti.`,
+        },
+        {
+          status: 429,
+          headers: corsHeaders,
+        }
+      );
+    }
+
+    // 3. Check for cooldown period after expired transactions
+    const cooldownTime = new Date(
+      Date.now() - COOLDOWN_AFTER_EXPIRED_MINUTES * 60 * 1000
+    ).toISOString();
+    const { data: recentExpired } = await supabase
+      .from("transactions")
+      .select("created_at, status")
+      .eq("email", email)
+      .in("status", ["EXPIRED", "CANCELLED"])
+      .gte("created_at", cooldownTime)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (recentExpired) {
+      const expiredTime = new Date(recentExpired.created_at).getTime();
+      const waitUntil = new Date(
+        expiredTime + COOLDOWN_AFTER_EXPIRED_MINUTES * 60 * 1000
+      );
+      const minutesLeft = Math.ceil(
+        (waitUntil.getTime() - Date.now()) / (60 * 1000)
+      );
+
+      if (minutesLeft > 0) {
+        secureLog("⚠️ Cooldown period active", { email, minutesLeft });
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Mohon tunggu ${minutesLeft} menit setelah transaksi expired sebelum membuat transaksi baru.`,
+          },
+          {
+            status: 429,
+            headers: corsHeaders,
+          }
+        );
+      }
+    }
+
+    // 4. Check for suspicious patterns (same email creating many failed transactions)
+    const { count: failedCount } = await supabase
+      .from("transactions")
+      .select("*", { count: "exact", head: true })
+      .eq("email", email)
+      .in("status", ["EXPIRED", "CANCELLED"])
+      .gte("created_at", oneHourAgo);
+
+    if (failedCount && failedCount >= 10) {
+      secureLog("🚨 Suspicious activity detected", { email, failedCount });
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Aktivitas mencurigakan terdeteksi. Silakan hubungi customer support.`,
+        },
+        {
+          status: 403,
+          headers: corsHeaders,
+        }
+      );
+    }
+    // ========== END ANTI-SPAM CHECKS ==========
 
     // ========== FETCH AND RESERVE VOUCHER USING DATABASE FUNCTION ==========
     // First, peek at available vouchers to get the voucher details

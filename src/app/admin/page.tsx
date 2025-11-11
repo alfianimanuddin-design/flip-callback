@@ -39,6 +39,9 @@ export default function AdminDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState<'transactions' | 'statistics'>('statistics');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [resendingEmails, setResendingEmails] = useState<Set<string>>(new Set());
+  const [resendSuccess, setResendSuccess] = useState<string | null>(null);
+  const [resendError, setResendError] = useState<string | null>(null);
   const itemsPerPage = 10;
   const router = useRouter();
 
@@ -118,6 +121,67 @@ export default function AdminDashboard() {
     setIsRefreshing(true);
     await fetchData();
     setIsRefreshing(false);
+  };
+
+  const handleResendVoucher = async (transactionId: string) => {
+    // Clear previous messages
+    setResendSuccess(null);
+    setResendError(null);
+
+    // Add transaction to loading state
+    setResendingEmails((prev) => new Set(prev).add(transactionId));
+
+    try {
+      // Get the current session token
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        throw new Error("Not authenticated");
+      }
+
+      // Call the resend API endpoint
+      const response = await fetch("/api/resend-voucher", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ transactionId }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to resend email");
+      }
+
+      // Show success message
+      setResendSuccess(`Email resent successfully to ${result.data.email}`);
+
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
+        setResendSuccess(null);
+      }, 5000);
+    } catch (error) {
+      console.error("Error resending voucher:", error);
+      setResendError(
+        error instanceof Error ? error.message : "Failed to resend email"
+      );
+
+      // Auto-hide error message after 5 seconds
+      setTimeout(() => {
+        setResendError(null);
+      }, 5000);
+    } finally {
+      // Remove transaction from loading state
+      setResendingEmails((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(transactionId);
+        return newSet;
+      });
+    }
   };
 
   const filteredTransactions = transactions.filter((tx) => {
@@ -210,6 +274,14 @@ export default function AdminDashboard() {
         input::placeholder {
           color: #d1d5db;
           opacity: 1;
+        }
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
         }
       `}</style>
       <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
@@ -554,6 +626,53 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* Notifications */}
+        {(resendSuccess || resendError) && (
+          <div
+            style={{
+              backgroundColor: resendSuccess ? "#D1FAE5" : "#FEE2E2",
+              border: `1px solid ${resendSuccess ? "#10B981" : "#EF4444"}`,
+              borderRadius: "8px",
+              padding: "16px",
+              marginBottom: "24px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span style={{ fontSize: "20px" }}>
+                {resendSuccess ? "✅" : "❌"}
+              </span>
+              <span
+                style={{
+                  color: resendSuccess ? "#065F46" : "#991B1B",
+                  fontWeight: "500",
+                  fontSize: "14px",
+                }}
+              >
+                {resendSuccess || resendError}
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setResendSuccess(null);
+                setResendError(null);
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: resendSuccess ? "#065F46" : "#991B1B",
+                fontSize: "20px",
+                cursor: "pointer",
+                padding: "0 4px",
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Transactions Table */}
         <div
           style={{
@@ -677,13 +796,16 @@ export default function AdminDashboard() {
                   {/* <th style={tableHeaderStyle}>Voucher Code</th> */}
                   <th style={tableHeaderStyle}>Amount</th>
                   <th style={tableHeaderStyle}>Transaction Created</th>
+                  {userRole === "admin" && (
+                    <th style={tableHeaderStyle}>Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {filteredTransactions.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={userRole === "admin" ? 6 : 5}
                       style={{
                         textAlign: "center",
                         padding: "60px 20px",
@@ -818,6 +940,67 @@ export default function AdminDashboard() {
                           })}
                         </span>
                       </td>
+                      {userRole === "admin" && (
+                        <td style={tableCellStyle}>
+                          {tx.voucher_code ? (
+                            <button
+                              onClick={() => handleResendVoucher(tx.transaction_id)}
+                              disabled={resendingEmails.has(tx.transaction_id)}
+                              style={{
+                                padding: "8px 16px",
+                                backgroundColor: resendingEmails.has(tx.transaction_id)
+                                  ? "#D1D5DB"
+                                  : "#667eea",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "6px",
+                                fontSize: "13px",
+                                fontWeight: "600",
+                                cursor: resendingEmails.has(tx.transaction_id)
+                                  ? "not-allowed"
+                                  : "pointer",
+                                transition: "all 0.2s",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!resendingEmails.has(tx.transaction_id)) {
+                                  e.currentTarget.style.backgroundColor = "#5568d3";
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!resendingEmails.has(tx.transaction_id)) {
+                                  e.currentTarget.style.backgroundColor = "#667eea";
+                                }
+                              }}
+                            >
+                              {resendingEmails.has(tx.transaction_id) ? (
+                                <>
+                                  <span
+                                    style={{
+                                      display: "inline-block",
+                                      width: "12px",
+                                      height: "12px",
+                                      border: "2px solid white",
+                                      borderTopColor: "transparent",
+                                      borderRadius: "50%",
+                                      animation: "spin 1s linear infinite",
+                                    }}
+                                  />
+                                  Sending...
+                                </>
+                              ) : (
+                                <>📧 Resend Email</>
+                              )}
+                            </button>
+                          ) : (
+                            <span style={{ color: "#9CA3AF", fontSize: "13px" }}>
+                              No voucher
+                            </span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
