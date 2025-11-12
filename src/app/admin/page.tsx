@@ -37,11 +37,16 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [showAddVoucher, setShowAddVoucher] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState<'transactions' | 'statistics'>('statistics');
+  const [activeTab, setActiveTab] = useState<"transactions" | "statistics">(
+    "statistics"
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [resendingEmails, setResendingEmails] = useState<Set<string>>(new Set());
+  const [resendingEmails, setResendingEmails] = useState<Set<string>>(
+    new Set()
+  );
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const itemsPerPage = 10;
   const router = useRouter();
 
@@ -49,6 +54,20 @@ export default function AdminDashboard() {
     checkAuth();
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDropdown(null);
+    };
+
+    if (openDropdown) {
+      document.addEventListener("click", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, [openDropdown]);
 
   const checkAuth = async () => {
     const {
@@ -322,7 +341,7 @@ export default function AdminDashboard() {
               </p>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
@@ -346,7 +365,8 @@ export default function AdminDashboard() {
               }}
               onMouseLeave={(e) => {
                 if (!isRefreshing) {
-                  e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.2)";
+                  e.currentTarget.style.backgroundColor =
+                    "rgba(255,255,255,0.2)";
                   e.currentTarget.style.color = "white";
                 }
               }}
@@ -391,35 +411,43 @@ export default function AdminDashboard() {
           }}
         >
           <button
-            onClick={() => setActiveTab('statistics')}
+            onClick={() => setActiveTab("statistics")}
             style={{
               padding: "12px 24px",
-              backgroundColor: activeTab === 'statistics' ? "white" : "transparent",
-              color: activeTab === 'statistics' ? "#667eea" : "white",
+              backgroundColor:
+                activeTab === "statistics" ? "white" : "transparent",
+              color: activeTab === "statistics" ? "#667eea" : "white",
               border: "none",
               borderRadius: "8px 8px 0 0",
               fontSize: "16px",
               fontWeight: "600",
               cursor: "pointer",
               transition: "all 0.2s",
-              borderBottom: activeTab === 'statistics' ? "3px solid #667eea" : "3px solid transparent",
+              borderBottom:
+                activeTab === "statistics"
+                  ? "3px solid #667eea"
+                  : "3px solid transparent",
             }}
           >
             📈 Dashboard
           </button>
           <button
-            onClick={() => setActiveTab('transactions')}
+            onClick={() => setActiveTab("transactions")}
             style={{
               padding: "12px 24px",
-              backgroundColor: activeTab === 'transactions' ? "white" : "transparent",
-              color: activeTab === 'transactions' ? "#667eea" : "white",
+              backgroundColor:
+                activeTab === "transactions" ? "white" : "transparent",
+              color: activeTab === "transactions" ? "#667eea" : "white",
               border: "none",
               borderRadius: "8px 8px 0 0",
               fontSize: "16px",
               fontWeight: "600",
               cursor: "pointer",
               transition: "all 0.2s",
-              borderBottom: activeTab === 'transactions' ? "3px solid #667eea" : "3px solid transparent",
+              borderBottom:
+                activeTab === "transactions"
+                  ? "3px solid #667eea"
+                  : "3px solid transparent",
             }}
           >
             📊 Transactions & Vouchers
@@ -427,7 +455,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Transactions & Vouchers Tab Content */}
-        {activeTab === 'transactions' && (
+        {activeTab === "transactions" && (
           <>
             {/* Stats Cards */}
             <div
@@ -458,441 +486,451 @@ export default function AdminDashboard() {
               />
             </div>
 
-        {/* Available Vouchers Section */}
-        <div
-          style={{
-            backgroundColor: "white",
-            borderRadius: "16px",
-            boxShadow:
-              "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-            overflow: "hidden",
-            marginBottom: "40px",
-          }}
-        >
-          <div
-            style={{
-              padding: "24px",
-              borderBottom: "1px solid #E5E7EB",
-            }}
-          >
+            {/* Available Vouchers Section */}
             <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "16px",
+                backgroundColor: "white",
+                borderRadius: "16px",
+                boxShadow:
+                  "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                overflow: "hidden",
+                marginBottom: "40px",
               }}
             >
-              <h2
+              <div
                 style={{
-                  fontSize: "24px",
-                  fontWeight: "bold",
-                  color: "#111827",
-                  margin: 0,
+                  padding: "24px",
+                  borderBottom: "1px solid #E5E7EB",
                 }}
               >
-                Available Vouchers ({voucherData.available})
-              </h2>
-              {userRole === "admin" && (
-                <button
-                  onClick={() => setShowAddVoucher(true)}
+                <div
                   style={{
-                    padding: "10px 20px",
-                    backgroundColor: "#667eea",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.boxShadow =
-                      "0 4px 12px rgba(0,0,0,0.15)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow = "none";
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "16px",
                   }}
                 >
-                  ➕ Add Voucher
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-              }}
-            >
-              <thead>
-                <tr style={{ backgroundColor: "#F9FAFB" }}>
-                  <th style={tableHeaderStyle}>Product Name</th>
-                  <th style={tableHeaderStyle}>Total Available</th>
-                  <th style={tableHeaderStyle}>Total Used</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allProductNames.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      style={{
-                        textAlign: "center",
-                        padding: "60px 20px",
-                        color: "#9CA3AF",
-                      }}
-                    >
-                      <div style={{ fontSize: "48px", marginBottom: "16px" }}>
-                        📭
-                      </div>
-                      <div style={{ fontSize: "18px", fontWeight: "500" }}>
-                        No vouchers
-                      </div>
-                      <div style={{ fontSize: "14px", marginTop: "8px" }}>
-                        Click "Add Voucher" button above to add new vouchers
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  allProductNames.map((productName, index) => {
-                    const availableCount =
-                      availableVouchersByProduct[productName] || 0;
-                    const totalUsed = usedVouchersByProduct[productName] || 0;
-
-                    return (
-                      <tr
-                        key={productName}
-                        style={{
-                          borderBottom: "1px solid #F3F4F6",
-                          backgroundColor:
-                            index % 2 === 0 ? "white" : "#FAFAFA",
-                        }}
-                      >
-                        <td style={tableCellStyle}>
-                          <span
-                            style={{
-                              color: "#374151",
-                              fontWeight: "500",
-                              textTransform: "capitalize",
-                            }}
-                          >
-                            {productName}
-                          </span>
-                        </td>
-                        <td style={tableCellStyle}>
-                          <span
-                            style={{
-                              display: "inline-block",
-                              padding: "6px 16px",
-                              backgroundColor:
-                                availableCount > 0 ? "#DCFCE7" : "#F3F4F6",
-                              color: availableCount > 0 ? "#166534" : "#6B7280",
-                              borderRadius: "9999px",
-                              fontWeight: "600",
-                              fontSize: "14px",
-                            }}
-                          >
-                            {availableCount} available
-                          </span>
-                        </td>
-                        <td style={tableCellStyle}>
-                          <span
-                            style={{
-                              display: "inline-block",
-                              padding: "6px 16px",
-                              backgroundColor: "#FEF3C7",
-                              color: "#92400E",
-                              borderRadius: "9999px",
-                              fontWeight: "600",
-                              fontSize: "14px",
-                            }}
-                          >
-                            {totalUsed} used
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Notifications */}
-        {(resendSuccess || resendError) && (
-          <div
-            style={{
-              backgroundColor: resendSuccess ? "#D1FAE5" : "#FEE2E2",
-              border: `1px solid ${resendSuccess ? "#10B981" : "#EF4444"}`,
-              borderRadius: "8px",
-              padding: "16px",
-              marginBottom: "24px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <span style={{ fontSize: "20px" }}>
-                {resendSuccess ? "✅" : "❌"}
-              </span>
-              <span
-                style={{
-                  color: resendSuccess ? "#065F46" : "#991B1B",
-                  fontWeight: "500",
-                  fontSize: "14px",
-                }}
-              >
-                {resendSuccess || resendError}
-              </span>
-            </div>
-            <button
-              onClick={() => {
-                setResendSuccess(null);
-                setResendError(null);
-              }}
-              style={{
-                background: "none",
-                border: "none",
-                color: resendSuccess ? "#065F46" : "#991B1B",
-                fontSize: "20px",
-                cursor: "pointer",
-                padding: "0 4px",
-              }}
-            >
-              ×
-            </button>
-          </div>
-        )}
-
-        {/* Transactions Table */}
-        <div
-          style={{
-            backgroundColor: "white",
-            borderRadius: "16px",
-            boxShadow:
-              "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              padding: "24px",
-              borderBottom: "1px solid #E5E7EB",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "16px",
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: "24px",
-                  fontWeight: "bold",
-                  color: "#111827",
-                  margin: 0,
-                }}
-              >
-                Redeemed Vouchers ({voucherData.used})
-              </h2>
-              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                <div style={{ position: "relative" }}>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+                  <h2
                     style={{
-                      padding: "10px 40px 10px 16px",
-                      fontSize: "14px",
-                      border: "2px solid #E5E7EB",
-                      borderRadius: "8px",
-                      outline: "none",
-                      backgroundColor: "white",
+                      fontSize: "24px",
+                      fontWeight: "bold",
                       color: "#111827",
-                      cursor: "pointer",
-                      transition: "border-color 0.2s",
-                      fontWeight: "500",
-                      appearance: "none",
-                      WebkitAppearance: "none",
-                      MozAppearance: "none",
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "#667eea";
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = "#E5E7EB";
+                      margin: 0,
                     }}
                   >
-                    <option value="ALL">All Status</option>
-                    <option value="SUCCESSFUL">Successful</option>
-                    <option value="PENDING">Pending</option>
-                    <option value="EXPIRED">Expired</option>
-                    <option value="CANCELLED">Cancelled</option>
-                  </select>
-                  <div
-                    style={{
-                      position: "absolute",
-                      right: "12px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      pointerEvents: "none",
-                      color: "#6B7280",
-                      fontSize: "12px",
-                    }}
-                  >
-                    ▼
-                  </div>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search by transaction ID or email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    padding: "10px 16px",
-                    fontSize: "14px",
-                    border: "2px solid #E5E7EB",
-                    borderRadius: "8px",
-                    outline: "none",
-                    minWidth: "300px",
-                    transition: "border-color 0.2s",
-                    color: "#111827",
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "#667eea";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "#E5E7EB";
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-              }}
-            >
-              <thead>
-                <tr style={{ backgroundColor: "#F9FAFB" }}>
-                  <th style={tableHeaderStyle}>Email</th>
-                  <th style={tableHeaderStyle}>Transaction ID</th>
-                  <th style={tableHeaderStyle}>Payment Status</th>
-                  {/* <th style={tableHeaderStyle}>Voucher Code</th> */}
-                  <th style={tableHeaderStyle}>Amount</th>
-                  <th style={tableHeaderStyle}>Transaction Created</th>
+                    Available Vouchers ({voucherData.available})
+                  </h2>
                   {userRole === "admin" && (
-                    <th style={tableHeaderStyle}>Actions</th>
+                    <button
+                      onClick={() => setShowAddVoucher(true)}
+                      style={{
+                        padding: "10px 20px",
+                        backgroundColor: "#667eea",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "8px",
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                        e.currentTarget.style.boxShadow =
+                          "0 4px 12px rgba(0,0,0,0.15)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                    >
+                      ➕ Add Voucher
+                    </button>
                   )}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTransactions.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={userRole === "admin" ? 6 : 5}
-                      style={{
-                        textAlign: "center",
-                        padding: "60px 20px",
-                        color: "#9CA3AF",
-                      }}
-                    >
-                      <div style={{ fontSize: "48px", marginBottom: "16px" }}>
-                        {transactions.length === 0 ? "📭" : "🔍"}
-                      </div>
-                      <div style={{ fontSize: "18px", fontWeight: "500" }}>
-                        {transactions.length === 0
-                          ? "No transactions yet"
-                          : "No matching transactions"}
-                      </div>
-                      <div style={{ fontSize: "14px", marginTop: "8px" }}>
-                        {transactions.length === 0
-                          ? "Transactions will appear here once payments are made"
-                          : "Try adjusting your search query"}
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedTransactions.map((tx, index) => (
-                    <tr
-                      key={tx.id}
-                      style={{
-                        borderBottom: "1px solid #F3F4F6",
-                        backgroundColor: index % 2 === 0 ? "white" : "#FAFAFA",
-                      }}
-                    >
-                      <td style={tableCellStyle}>
-                        <span style={{ color: "#374151" }}>{tx.email}</span>
-                      </td>
-                      <td style={tableCellStyle}>
-                        <span
+                </div>
+              </div>
+
+              <div style={{ overflowX: "auto" }}>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                  }}
+                >
+                  <thead>
+                    <tr style={{ backgroundColor: "#F9FAFB" }}>
+                      <th style={tableHeaderStyle}>Product Name</th>
+                      <th style={tableHeaderStyle}>Total Available</th>
+                      <th style={tableHeaderStyle}>Total Used</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allProductNames.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={3}
                           style={{
-                            fontFamily: "monospace",
-                            fontSize: "13px",
-                            color: "#6B7280",
+                            textAlign: "center",
+                            padding: "60px 20px",
+                            color: "#9CA3AF",
                           }}
                         >
-                          {tx.transaction_id}
-                        </span>
-                      </td>
-                      <td style={tableCellStyle}>
-                        {(() => {
-                          const statusColors = {
-                            SUCCESSFUL: {
-                              bg: "#D1FAE5",
-                              color: "#065F46",
-                            },
-                            PENDING: {
-                              bg: "#FEF3C7",
-                              color: "#92400E",
-                            },
-                            EXPIRED: {
-                              bg: "#FEE2E2",
-                              color: "#991B1B",
-                            },
-                            CANCELLED: {
-                              bg: "#FEE2E2",
-                              color: "#991B1B",
-                            },
-                          };
-                          const colors =
-                            statusColors[
-                              tx.status as keyof typeof statusColors
-                            ] || statusColors.PENDING;
+                          <div
+                            style={{ fontSize: "48px", marginBottom: "16px" }}
+                          >
+                            📭
+                          </div>
+                          <div style={{ fontSize: "18px", fontWeight: "500" }}>
+                            No vouchers
+                          </div>
+                          <div style={{ fontSize: "14px", marginTop: "8px" }}>
+                            Click "Add Voucher" button above to add new vouchers
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      allProductNames.map((productName, index) => {
+                        const availableCount =
+                          availableVouchersByProduct[productName] || 0;
+                        const totalUsed =
+                          usedVouchersByProduct[productName] || 0;
 
-                          return (
+                        return (
+                          <tr
+                            key={productName}
+                            style={{
+                              borderBottom: "1px solid #F3F4F6",
+                              backgroundColor:
+                                index % 2 === 0 ? "white" : "#FAFAFA",
+                            }}
+                          >
+                            <td style={tableCellStyle}>
+                              <span
+                                style={{
+                                  color: "#374151",
+                                  fontWeight: "500",
+                                  textTransform: "capitalize",
+                                }}
+                              >
+                                {productName}
+                              </span>
+                            </td>
+                            <td style={tableCellStyle}>
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  padding: "6px 16px",
+                                  backgroundColor:
+                                    availableCount > 0 ? "#DCFCE7" : "#F3F4F6",
+                                  color:
+                                    availableCount > 0 ? "#166534" : "#6B7280",
+                                  borderRadius: "9999px",
+                                  fontWeight: "600",
+                                  fontSize: "14px",
+                                }}
+                              >
+                                {availableCount} available
+                              </span>
+                            </td>
+                            <td style={tableCellStyle}>
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  padding: "6px 16px",
+                                  backgroundColor: "#FEF3C7",
+                                  color: "#92400E",
+                                  borderRadius: "9999px",
+                                  fontWeight: "600",
+                                  fontSize: "14px",
+                                }}
+                              >
+                                {totalUsed} used
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Notifications */}
+            {(resendSuccess || resendError) && (
+              <div
+                style={{
+                  backgroundColor: resendSuccess ? "#D1FAE5" : "#FEE2E2",
+                  border: `1px solid ${resendSuccess ? "#10B981" : "#EF4444"}`,
+                  borderRadius: "8px",
+                  padding: "16px",
+                  marginBottom: "24px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "12px" }}
+                >
+                  <span style={{ fontSize: "20px" }}>
+                    {resendSuccess ? "✅" : "❌"}
+                  </span>
+                  <span
+                    style={{
+                      color: resendSuccess ? "#065F46" : "#991B1B",
+                      fontWeight: "500",
+                      fontSize: "14px",
+                    }}
+                  >
+                    {resendSuccess || resendError}
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setResendSuccess(null);
+                    setResendError(null);
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: resendSuccess ? "#065F46" : "#991B1B",
+                    fontSize: "20px",
+                    cursor: "pointer",
+                    padding: "0 4px",
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            )}
+
+            {/* Transactions Table */}
+            <div
+              style={{
+                backgroundColor: "white",
+                borderRadius: "16px",
+                boxShadow:
+                  "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  padding: "24px",
+                  borderBottom: "1px solid #E5E7EB",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "16px",
+                  }}
+                >
+                  <h2
+                    style={{
+                      fontSize: "24px",
+                      fontWeight: "bold",
+                      color: "#111827",
+                      margin: 0,
+                    }}
+                  >
+                    Redeemed Vouchers ({voucherData.used})
+                  </h2>
+                  <div
+                    style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}
+                  >
+                    <div style={{ position: "relative" }}>
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        style={{
+                          padding: "10px 40px 10px 16px",
+                          fontSize: "14px",
+                          border: "2px solid #E5E7EB",
+                          borderRadius: "8px",
+                          outline: "none",
+                          backgroundColor: "white",
+                          color: "#111827",
+                          cursor: "pointer",
+                          transition: "border-color 0.2s",
+                          fontWeight: "500",
+                          appearance: "none",
+                          WebkitAppearance: "none",
+                          MozAppearance: "none",
+                        }}
+                        onFocus={(e) => {
+                          e.currentTarget.style.borderColor = "#667eea";
+                        }}
+                        onBlur={(e) => {
+                          e.currentTarget.style.borderColor = "#E5E7EB";
+                        }}
+                      >
+                        <option value="ALL">All Status</option>
+                        <option value="SUCCESSFUL">Successful</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="EXPIRED">Expired</option>
+                      </select>
+                      <div
+                        style={{
+                          position: "absolute",
+                          right: "12px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          pointerEvents: "none",
+                          color: "#6B7280",
+                          fontSize: "12px",
+                        }}
+                      >
+                        ▼
+                      </div>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Search by transaction ID or email..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      style={{
+                        padding: "10px 16px",
+                        fontSize: "14px",
+                        border: "2px solid #E5E7EB",
+                        borderRadius: "8px",
+                        outline: "none",
+                        minWidth: "300px",
+                        transition: "border-color 0.2s",
+                        color: "#111827",
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "#667eea";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "#E5E7EB";
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ overflowX: "auto" }}>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                  }}
+                >
+                  <thead>
+                    <tr style={{ backgroundColor: "#F9FAFB" }}>
+                      <th style={tableHeaderStyle}>Email</th>
+                      <th style={tableHeaderStyle}>Transaction ID</th>
+                      <th style={tableHeaderStyle}>Payment Status</th>
+                      {/* <th style={tableHeaderStyle}>Voucher Code</th> */}
+                      <th style={tableHeaderStyle}>Amount</th>
+                      <th style={tableHeaderStyle}>Transaction Created</th>
+                      {userRole === "admin" && (
+                        <th style={tableHeaderStyle}></th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTransactions.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={userRole === "admin" ? 6 : 5}
+                          style={{
+                            textAlign: "center",
+                            padding: "60px 20px",
+                            color: "#9CA3AF",
+                          }}
+                        >
+                          <div
+                            style={{ fontSize: "48px", marginBottom: "16px" }}
+                          >
+                            {transactions.length === 0 ? "📭" : "🔍"}
+                          </div>
+                          <div style={{ fontSize: "18px", fontWeight: "500" }}>
+                            {transactions.length === 0
+                              ? "No transactions yet"
+                              : "No matching transactions"}
+                          </div>
+                          <div style={{ fontSize: "14px", marginTop: "8px" }}>
+                            {transactions.length === 0
+                              ? "Transactions will appear here once payments are made"
+                              : "Try adjusting your search query"}
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedTransactions.map((tx, index) => (
+                        <tr
+                          key={tx.id}
+                          style={{
+                            borderBottom: "1px solid #F3F4F6",
+                            backgroundColor:
+                              index % 2 === 0 ? "white" : "#FAFAFA",
+                          }}
+                        >
+                          <td style={tableCellStyle}>
+                            <span style={{ color: "#374151" }}>{tx.email}</span>
+                          </td>
+                          <td style={tableCellStyle}>
                             <span
                               style={{
-                                display: "inline-block",
-                                padding: "6px 12px",
-                                borderRadius: "6px",
+                                fontFamily: "monospace",
                                 fontSize: "13px",
-                                fontWeight: "600",
-                                backgroundColor: colors.bg,
-                                color: colors.color,
+                                color: "#6B7280",
                               }}
                             >
-                              {tx.status}
+                              {tx.transaction_id}
                             </span>
-                          );
-                        })()}
-                      </td>
-                      {/* <td style={tableCellStyle}>
+                          </td>
+                          <td style={tableCellStyle}>
+                            {(() => {
+                              const statusColors = {
+                                SUCCESSFUL: {
+                                  bg: "#D1FAE5",
+                                  color: "#065F46",
+                                },
+                                PENDING: {
+                                  bg: "#FEF3C7",
+                                  color: "#92400E",
+                                },
+                                EXPIRED: {
+                                  bg: "#FEE2E2",
+                                  color: "#991B1B",
+                                },
+                                CANCELLED: {
+                                  bg: "#FEE2E2",
+                                  color: "#991B1B",
+                                },
+                              };
+                              const colors =
+                                statusColors[
+                                  tx.status as keyof typeof statusColors
+                                ] || statusColors.PENDING;
+
+                              return (
+                                <span
+                                  style={{
+                                    display: "inline-block",
+                                    padding: "6px 12px",
+                                    borderRadius: "6px",
+                                    fontSize: "13px",
+                                    fontWeight: "600",
+                                    backgroundColor: colors.bg,
+                                    color: colors.color,
+                                  }}
+                                >
+                                  {tx.status}
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          {/* <td style={tableCellStyle}>
                         {tx.voucher_code ? (
                           <span
                             style={{
@@ -912,293 +950,392 @@ export default function AdminDashboard() {
                           <span style={{ color: "#9CA3AF" }}>-</span>
                         )}
                       </td> */}
-                      <td style={tableCellStyle}>
-                        <span
-                          style={{
-                            fontWeight: "600",
-                            color: "#111827",
-                          }}
-                        >
-                          Rp{(tx.discounted_amount || tx.amount)?.toLocaleString("id-ID")}
-                        </span>
-                      </td>
-                      <td style={tableCellStyle}>
-                        <span
-                          style={{
-                            color: "#6B7280",
-                            fontSize: "14px",
-                          }}
-                        >
-                          {new Date(tx.created_at).toLocaleString("id-ID", {
-                            timeZone: "Asia/Jakarta",
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false,
-                          })}
-                        </span>
-                      </td>
-                      {userRole === "admin" && (
-                        <td style={tableCellStyle}>
-                          {tx.voucher_code ? (
-                            <button
-                              onClick={() => handleResendVoucher(tx.transaction_id)}
-                              disabled={resendingEmails.has(tx.transaction_id)}
+                          <td style={tableCellStyle}>
+                            <span
                               style={{
-                                padding: "8px 16px",
-                                backgroundColor: resendingEmails.has(tx.transaction_id)
-                                  ? "#D1D5DB"
-                                  : "#667eea",
-                                color: "white",
+                                fontWeight: "600",
+                                color: "#111827",
+                              }}
+                            >
+                              Rp
+                              {(
+                                tx.discounted_amount || tx.amount
+                              )?.toLocaleString("id-ID")}
+                            </span>
+                          </td>
+                          <td style={tableCellStyle}>
+                            <span
+                              style={{
+                                color: "#6B7280",
+                                fontSize: "14px",
+                              }}
+                            >
+                              {new Date(tx.created_at).toLocaleString("id-ID", {
+                                timeZone: "Asia/Jakarta",
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: false,
+                              })}
+                            </span>
+                          </td>
+                          {userRole === "admin" && (
+                            <td
+                              style={{
+                                ...tableCellStyle,
+                                position: "relative",
+                              }}
+                            >
+                              {tx.voucher_code ? (
+                                <div style={{ position: "relative" }}>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenDropdown(
+                                        openDropdown === tx.transaction_id
+                                          ? null
+                                          : tx.transaction_id
+                                      );
+                                    }}
+                                    style={{
+                                      padding: "8px",
+                                      backgroundColor: "transparent",
+                                      color: "#6B7280",
+                                      border: "none",
+                                      borderRadius: "6px",
+                                      fontSize: "20px",
+                                      cursor: "pointer",
+                                      transition: "all 0.2s",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      width: "36px",
+                                      height: "36px",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.backgroundColor =
+                                        "#F3F4F6";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.backgroundColor =
+                                        "transparent";
+                                    }}
+                                  >
+                                    ⋮
+                                  </button>
+
+                                  {openDropdown === tx.transaction_id && (
+                                    <div
+                                      style={{
+                                        position: "absolute",
+                                        top: "100%",
+                                        right: "0",
+                                        backgroundColor: "white",
+                                        border: "1px solid #E5E7EB",
+                                        borderRadius: "8px",
+                                        boxShadow:
+                                          "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                                        zIndex: 1000,
+                                        minWidth: "180px",
+                                        marginTop: "4px",
+                                      }}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <button
+                                        onClick={() => {
+                                          handleResendVoucher(
+                                            tx.transaction_id
+                                          );
+                                          setOpenDropdown(null);
+                                        }}
+                                        disabled={resendingEmails.has(
+                                          tx.transaction_id
+                                        )}
+                                        style={{
+                                          width: "100%",
+                                          padding: "12px 16px",
+                                          backgroundColor: "transparent",
+                                          color: resendingEmails.has(
+                                            tx.transaction_id
+                                          )
+                                            ? "#9CA3AF"
+                                            : "#667eea",
+                                          border: "none",
+                                          fontSize: "14px",
+                                          fontWeight: "600",
+                                          cursor: resendingEmails.has(
+                                            tx.transaction_id
+                                          )
+                                            ? "not-allowed"
+                                            : "pointer",
+                                          transition: "all 0.2s",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "8px",
+                                          textAlign: "left",
+                                          borderRadius: "6px",
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          if (
+                                            !resendingEmails.has(
+                                              tx.transaction_id
+                                            )
+                                          ) {
+                                            e.currentTarget.style.backgroundColor =
+                                              "#F3F4F6";
+                                          }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.backgroundColor =
+                                            "transparent";
+                                        }}
+                                      >
+                                        {resendingEmails.has(
+                                          tx.transaction_id
+                                        ) ? (
+                                          <>
+                                            <span
+                                              style={{
+                                                display: "inline-block",
+                                                width: "14px",
+                                                height: "14px",
+                                                border: "2px solid #9CA3AF",
+                                                borderTopColor: "transparent",
+                                                borderRadius: "50%",
+                                                animation:
+                                                  "spin 1s linear infinite",
+                                              }}
+                                            />
+                                            Sending...
+                                          </>
+                                        ) : (
+                                          <>📧 Resend Email</>
+                                        )}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span
+                                  style={{ color: "#9CA3AF", fontSize: "13px" }}
+                                >
+                                  No voucher
+                                </span>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              {filteredTransactions.length > itemsPerPage && (
+                <div
+                  style={{
+                    padding: "24px",
+                    borderTop: "1px solid #E5E7EB",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "16px",
+                  }}
+                >
+                  <div style={{ fontSize: "14px", color: "#6B7280" }}>
+                    Showing {startIndex + 1} to{" "}
+                    {Math.min(endIndex, filteredTransactions.length)} of{" "}
+                    {filteredTransactions.length} results
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "8px",
+                      alignItems: "center",
+                    }}
+                  >
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      style={{
+                        padding: "8px 16px",
+                        backgroundColor:
+                          currentPage === 1 ? "#F3F4F6" : "#667eea",
+                        color: currentPage === 1 ? "#9CA3AF" : "white",
+                        border: "none",
+                        borderRadius: "6px",
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentPage !== 1) {
+                          e.currentTarget.style.backgroundColor = "#5568d3";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currentPage !== 1) {
+                          e.currentTarget.style.backgroundColor = "#667eea";
+                        }
+                      }}
+                    >
+                      ← Previous
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div style={{ display: "flex", gap: "4px" }}>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                        (page) => {
+                          // Show first page, last page, current page, and pages around current
+                          const showPage =
+                            page === 1 ||
+                            page === totalPages ||
+                            (page >= currentPage - 1 &&
+                              page <= currentPage + 1);
+
+                          const showEllipsisBefore =
+                            page === currentPage - 1 && currentPage > 3;
+                          const showEllipsisAfter =
+                            page === currentPage + 1 &&
+                            currentPage < totalPages - 2;
+
+                          if (
+                            !showPage &&
+                            !showEllipsisBefore &&
+                            !showEllipsisAfter
+                          )
+                            return null;
+
+                          if (showEllipsisBefore || showEllipsisAfter) {
+                            return (
+                              <span
+                                key={page}
+                                style={{
+                                  padding: "8px 12px",
+                                  color: "#9CA3AF",
+                                  fontSize: "14px",
+                                }}
+                              >
+                                ...
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              style={{
+                                padding: "8px 12px",
+                                backgroundColor:
+                                  currentPage === page ? "#667eea" : "#F3F4F6",
+                                color:
+                                  currentPage === page ? "white" : "#374151",
                                 border: "none",
                                 borderRadius: "6px",
-                                fontSize: "13px",
-                                fontWeight: "600",
-                                cursor: resendingEmails.has(tx.transaction_id)
-                                  ? "not-allowed"
-                                  : "pointer",
+                                fontSize: "14px",
+                                fontWeight:
+                                  currentPage === page ? "600" : "500",
+                                cursor: "pointer",
+                                minWidth: "40px",
                                 transition: "all 0.2s",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "6px",
                               }}
                               onMouseEnter={(e) => {
-                                if (!resendingEmails.has(tx.transaction_id)) {
-                                  e.currentTarget.style.backgroundColor = "#5568d3";
+                                if (currentPage !== page) {
+                                  e.currentTarget.style.backgroundColor =
+                                    "#E5E7EB";
                                 }
                               }}
                               onMouseLeave={(e) => {
-                                if (!resendingEmails.has(tx.transaction_id)) {
-                                  e.currentTarget.style.backgroundColor = "#667eea";
+                                if (currentPage !== page) {
+                                  e.currentTarget.style.backgroundColor =
+                                    "#F3F4F6";
                                 }
                               }}
                             >
-                              {resendingEmails.has(tx.transaction_id) ? (
-                                <>
-                                  <span
-                                    style={{
-                                      display: "inline-block",
-                                      width: "12px",
-                                      height: "12px",
-                                      border: "2px solid white",
-                                      borderTopColor: "transparent",
-                                      borderRadius: "50%",
-                                      animation: "spin 1s linear infinite",
-                                    }}
-                                  />
-                                  Sending...
-                                </>
-                              ) : (
-                                <>📧 Resend Email</>
-                              )}
+                              {page}
                             </button>
-                          ) : (
-                            <span style={{ color: "#9CA3AF", fontSize: "13px" }}>
-                              No voucher
-                            </span>
-                          )}
-                        </td>
+                          );
+                        }
                       )}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                    </div>
 
-          {/* Pagination Controls */}
-          {filteredTransactions.length > itemsPerPage && (
-            <div
-              style={{
-                padding: "24px",
-                borderTop: "1px solid #E5E7EB",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "16px",
-              }}
-            >
-              <div style={{ fontSize: "14px", color: "#6B7280" }}>
-                Showing {startIndex + 1} to{" "}
-                {Math.min(endIndex, filteredTransactions.length)} of{" "}
-                {filteredTransactions.length} results
-              </div>
-
-              <div
-                style={{ display: "flex", gap: "8px", alignItems: "center" }}
-              >
-                {/* Previous Button */}
-                <button
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  style={{
-                    padding: "8px 16px",
-                    backgroundColor: currentPage === 1 ? "#F3F4F6" : "#667eea",
-                    color: currentPage === 1 ? "#9CA3AF" : "white",
-                    border: "none",
-                    borderRadius: "6px",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                    transition: "all 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 1) {
-                      e.currentTarget.style.backgroundColor = "#5568d3";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 1) {
-                      e.currentTarget.style.backgroundColor = "#667eea";
-                    }
-                  }}
-                >
-                  ← Previous
-                </button>
-
-                {/* Page Numbers */}
-                <div style={{ display: "flex", gap: "4px" }}>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                    (page) => {
-                      // Show first page, last page, current page, and pages around current
-                      const showPage =
-                        page === 1 ||
-                        page === totalPages ||
-                        (page >= currentPage - 1 && page <= currentPage + 1);
-
-                      const showEllipsisBefore =
-                        page === currentPage - 1 && currentPage > 3;
-                      const showEllipsisAfter =
-                        page === currentPage + 1 &&
-                        currentPage < totalPages - 2;
-
-                      if (
-                        !showPage &&
-                        !showEllipsisBefore &&
-                        !showEllipsisAfter
-                      )
-                        return null;
-
-                      if (showEllipsisBefore || showEllipsisAfter) {
-                        return (
-                          <span
-                            key={page}
-                            style={{
-                              padding: "8px 12px",
-                              color: "#9CA3AF",
-                              fontSize: "14px",
-                            }}
-                          >
-                            ...
-                          </span>
-                        );
-                      }
-
-                      return (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          style={{
-                            padding: "8px 12px",
-                            backgroundColor:
-                              currentPage === page ? "#667eea" : "#F3F4F6",
-                            color: currentPage === page ? "white" : "#374151",
-                            border: "none",
-                            borderRadius: "6px",
-                            fontSize: "14px",
-                            fontWeight: currentPage === page ? "600" : "500",
-                            cursor: "pointer",
-                            minWidth: "40px",
-                            transition: "all 0.2s",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (currentPage !== page) {
-                              e.currentTarget.style.backgroundColor = "#E5E7EB";
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (currentPage !== page) {
-                              e.currentTarget.style.backgroundColor = "#F3F4F6";
-                            }
-                          }}
-                        >
-                          {page}
-                        </button>
-                      );
-                    }
-                  )}
+                    {/* Next Button */}
+                    <button
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      style={{
+                        padding: "8px 16px",
+                        backgroundColor:
+                          currentPage === totalPages ? "#F3F4F6" : "#667eea",
+                        color: currentPage === totalPages ? "#9CA3AF" : "white",
+                        border: "none",
+                        borderRadius: "6px",
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        cursor:
+                          currentPage === totalPages
+                            ? "not-allowed"
+                            : "pointer",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentPage !== totalPages) {
+                          e.currentTarget.style.backgroundColor = "#5568d3";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currentPage !== totalPages) {
+                          e.currentTarget.style.backgroundColor = "#667eea";
+                        }
+                      }}
+                    >
+                      Next →
+                    </button>
+                  </div>
                 </div>
+              )}
+            </div>
 
-                {/* Next Button */}
-                <button
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
+            {/* Add Voucher Modal */}
+            {showAddVoucher && (
+              <div
+                onClick={() => setShowAddVoucher(false)}
+                style={{
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: "rgba(0, 0, 0, 0.5)",
+                  zIndex: 50,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "20px",
+                }}
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
                   style={{
-                    padding: "8px 16px",
-                    backgroundColor:
-                      currentPage === totalPages ? "#F3F4F6" : "#667eea",
-                    color: currentPage === totalPages ? "#9CA3AF" : "white",
-                    border: "none",
-                    borderRadius: "6px",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    cursor:
-                      currentPage === totalPages ? "not-allowed" : "pointer",
-                    transition: "all 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== totalPages) {
-                      e.currentTarget.style.backgroundColor = "#5568d3";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== totalPages) {
-                      e.currentTarget.style.backgroundColor = "#667eea";
-                    }
+                    backgroundColor: "white",
+                    borderRadius: "16px",
+                    maxWidth: "800px",
+                    width: "100%",
+                    maxHeight: "90vh",
+                    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+                    position: "relative",
                   }}
                 >
-                  Next →
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Add Voucher Modal */}
-        {showAddVoucher && (
-          <div
-            onClick={() => setShowAddVoucher(false)}
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-              zIndex: 50,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "20px",
-            }}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                backgroundColor: "white",
-                borderRadius: "16px",
-                maxWidth: "800px",
-                width: "100%",
-                maxHeight: "90vh",
-                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-                position: "relative",
-              }}
-            >
-              {/* Close Button */}
-              {/* <button
+                  {/* Close Button */}
+                  {/* <button
                 onClick={() => setShowAddVoucher(false)}
                 style={{
                   position: "absolute",
@@ -1229,28 +1366,31 @@ export default function AdminDashboard() {
                 ×
               </button> */}
 
-              {/* Add Voucher Form */}
-              <AddVoucherForm
-                onVoucherAdded={() => {
-                  fetchData();
-                  setShowAddVoucher(false);
-                }}
-                existingProductNames={existingProductNames}
-              />
-            </div>
-          </div>
-        )}
+                  {/* Add Voucher Form */}
+                  <AddVoucherForm
+                    onVoucherAdded={() => {
+                      fetchData();
+                      setShowAddVoucher(false);
+                    }}
+                    existingProductNames={existingProductNames}
+                  />
+                </div>
+              </div>
+            )}
           </>
         )}
 
         {/* Statistics Dashboard Tab Content */}
-        {activeTab === 'statistics' && (
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '16px',
-            padding: '20px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-          }}>
+        {activeTab === "statistics" && (
+          <div
+            style={{
+              backgroundColor: "white",
+              borderRadius: "16px",
+              padding: "20px",
+              boxShadow:
+                "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+            }}
+          >
             <StatisticsDashboard />
           </div>
         )}
