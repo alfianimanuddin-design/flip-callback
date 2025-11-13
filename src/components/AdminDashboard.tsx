@@ -24,7 +24,8 @@ interface SalesStats {
   totalTransactions: number;
   successfulTransactions: number;
   pendingTransactions: number;
-  failedTransactions: number;
+  expiredTransactions: number;
+  cancelledTransactions: number;
   averageOrderValue: number;
   conversionRate: number;
 }
@@ -48,7 +49,8 @@ interface DailyStat {
   total: number;
   successful: number;
   pending: number;
-  failed: number;
+  expired: number;
+  cancelled: number;
   revenue: number;
 }
 
@@ -264,7 +266,8 @@ export default function AdminDashboard() {
           <TransactionPieChart
             successful={stats.sales.successfulTransactions}
             pending={stats.sales.pendingTransactions}
-            failed={stats.sales.failedTransactions}
+            expired={stats.sales.expiredTransactions}
+            cancelled={stats.sales.cancelledTransactions}
           />
         </ChartCard>
       </div>
@@ -721,13 +724,15 @@ function RevenueAreaChart({ data }: { data: DailyStat[] }) {
 function TransactionPieChart({
   successful,
   pending,
-  failed,
+  expired,
+  cancelled,
 }: {
   successful: number;
   pending: number;
-  failed: number;
+  expired: number;
+  cancelled: number;
 }) {
-  const total = successful + pending + failed;
+  const total = successful + pending + expired + cancelled;
 
   if (total === 0) {
     return (
@@ -741,7 +746,8 @@ function TransactionPieChart({
   const data = [
     { name: 'Successful', value: successful, color: '#10b981' },
     { name: 'Pending', value: pending, color: '#f59e0b' },
-    { name: 'Failed', value: failed, color: '#ef4444' },
+    { name: 'Expired', value: expired, color: '#ef4444' },
+    { name: 'Cancelled', value: cancelled, color: '#9ca3af' },
   ].filter(item => item.value > 0);
 
   const renderLabel = (entry: any) => {
@@ -895,10 +901,18 @@ function DailyTransactionsChart({ data }: { data: DailyStat[] }) {
         />
         <Line
           type="monotone"
-          dataKey="failed"
+          dataKey="expired"
           stroke="#ef4444"
           strokeWidth={2}
-          name="Failed"
+          name="Expired"
+          animationDuration={1000}
+        />
+        <Line
+          type="monotone"
+          dataKey="cancelled"
+          stroke="#9ca3af"
+          strokeWidth={2}
+          name="Cancelled"
           animationDuration={1000}
         />
       </RechartsLineChart>

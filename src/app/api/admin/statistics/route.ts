@@ -42,7 +42,8 @@ export async function GET(request: Request) {
       totalTransactions: transactions?.length || 0,
       successfulTransactions: transactions?.filter((t) => t.status === 'SUCCESSFUL').length || 0,
       pendingTransactions: transactions?.filter((t) => t.status === 'PENDING').length || 0,
-      failedTransactions: transactions?.filter((t) => t.status === 'CANCELLED' || t.status === 'EXPIRED').length || 0,
+      expiredTransactions: transactions?.filter((t) => t.status === 'EXPIRED').length || 0,
+      cancelledTransactions: transactions?.filter((t) => t.status === 'CANCELLED').length || 0,
       averageOrderValue: 0,
       conversionRate: 0,
     };
@@ -119,7 +120,8 @@ export async function GET(request: Request) {
         total: dayTransactions.length,
         successful: dayTransactions.filter((t) => t.status === 'SUCCESSFUL').length,
         pending: dayTransactions.filter((t) => t.status === 'PENDING').length,
-        failed: dayTransactions.filter((t) => t.status === 'CANCELLED' || t.status === 'EXPIRED').length,
+        expired: dayTransactions.filter((t) => t.status === 'EXPIRED').length,
+        cancelled: dayTransactions.filter((t) => t.status === 'CANCELLED').length,
         revenue: dayTransactions
           .filter((t) => t.status === 'SUCCESSFUL')
           .reduce((sum, t) => sum + parseFloat(t.discounted_amount || t.amount || '0'), 0),
