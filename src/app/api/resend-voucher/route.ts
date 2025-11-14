@@ -72,20 +72,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user is admin
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (profileError || !profile || profile.role !== "admin") {
-      return NextResponse.json(
-        { success: false, message: "Forbidden - Admin access required" },
-        { status: 403 }
-      );
-    }
-
     // Get transaction ID from request body
     const { transactionId } = await request.json();
 

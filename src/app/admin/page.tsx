@@ -831,16 +831,14 @@ export default function AdminDashboard() {
                       {/* <th style={tableHeaderStyle}>Voucher Code</th> */}
                       <th style={tableHeaderStyle}>Amount</th>
                       <th style={tableHeaderStyle}>Transaction Created</th>
-                      {userRole === "admin" && (
-                        <th style={tableHeaderStyle}></th>
-                      )}
+                      <th style={tableHeaderStyle}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredTransactions.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={userRole === "admin" ? 6 : 5}
+                          colSpan={6}
                           style={{
                             textAlign: "center",
                             padding: "60px 20px",
@@ -981,14 +979,13 @@ export default function AdminDashboard() {
                               })}
                             </span>
                           </td>
-                          {userRole === "admin" && (
-                            <td
-                              style={{
-                                ...tableCellStyle,
-                                position: "relative",
-                              }}
-                            >
-                              {tx.voucher_code ? (
+                          <td
+                            style={{
+                              ...tableCellStyle,
+                              position: "relative",
+                            }}
+                          >
+                            {tx.voucher_code ? (
                                 <div style={{ position: "relative" }}>
                                   <button
                                     onClick={(e) => {
@@ -1125,7 +1122,6 @@ export default function AdminDashboard() {
                                 </span>
                               )}
                             </td>
-                          )}
                         </tr>
                       ))
                     )}
