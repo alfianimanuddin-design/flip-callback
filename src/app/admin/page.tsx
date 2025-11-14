@@ -985,7 +985,7 @@ export default function AdminDashboard() {
                               position: "relative",
                             }}
                           >
-                            {tx.voucher_code ? (
+                            {tx.voucher_code && tx.status === "SUCCESSFUL" ? (
                                 <div style={{ position: "relative" }}>
                                   <button
                                     onClick={(e) => {
