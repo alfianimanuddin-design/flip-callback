@@ -985,43 +985,57 @@ export default function AdminDashboard() {
                               position: "relative",
                             }}
                           >
-                            {tx.voucher_code && tx.status === "SUCCESSFUL" ? (
-                                <div style={{ position: "relative" }}>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setOpenDropdown(
-                                        openDropdown === tx.transaction_id
-                                          ? null
-                                          : tx.transaction_id
-                                      );
-                                    }}
-                                    style={{
-                                      padding: "8px",
-                                      backgroundColor: "transparent",
-                                      color: "#6B7280",
-                                      border: "none",
-                                      borderRadius: "6px",
-                                      fontSize: "20px",
-                                      cursor: "pointer",
-                                      transition: "all 0.2s",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      width: "36px",
-                                      height: "36px",
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.currentTarget.style.backgroundColor =
-                                        "#F3F4F6";
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.currentTarget.style.backgroundColor =
-                                        "transparent";
-                                    }}
-                                  >
-                                    ⋮
-                                  </button>
+                            <div style={{ position: "relative" }}>
+                              <button
+                                onClick={(e) => {
+                                  if (tx.voucher_code && tx.status === "SUCCESSFUL") {
+                                    e.stopPropagation();
+                                    setOpenDropdown(
+                                      openDropdown === tx.transaction_id
+                                        ? null
+                                        : tx.transaction_id
+                                    );
+                                  }
+                                }}
+                                disabled={!tx.voucher_code || tx.status !== "SUCCESSFUL"}
+                                title={
+                                  !tx.voucher_code
+                                    ? "No voucher code available"
+                                    : tx.status !== "SUCCESSFUL"
+                                    ? "Only available for successful transactions"
+                                    : "Actions"
+                                }
+                                style={{
+                                  padding: "8px",
+                                  backgroundColor: "transparent",
+                                  color: (!tx.voucher_code || tx.status !== "SUCCESSFUL") ? "#D1D5DB" : "#6B7280",
+                                  border: "none",
+                                  borderRadius: "6px",
+                                  fontSize: "20px",
+                                  cursor: (!tx.voucher_code || tx.status !== "SUCCESSFUL") ? "not-allowed" : "pointer",
+                                  transition: "all 0.2s",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  width: "36px",
+                                  height: "36px",
+                                  opacity: (!tx.voucher_code || tx.status !== "SUCCESSFUL") ? 0.5 : 1,
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (tx.voucher_code && tx.status === "SUCCESSFUL") {
+                                    e.currentTarget.style.backgroundColor =
+                                      "#F3F4F6";
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (tx.voucher_code && tx.status === "SUCCESSFUL") {
+                                    e.currentTarget.style.backgroundColor =
+                                      "transparent";
+                                  }
+                                }}
+                              >
+                                ⋮
+                              </button>
 
                                   {openDropdown === tx.transaction_id && (
                                     <div
@@ -1113,15 +1127,8 @@ export default function AdminDashboard() {
                                       </button>
                                     </div>
                                   )}
-                                </div>
-                              ) : (
-                                <span
-                                  style={{ color: "#9CA3AF", fontSize: "13px" }}
-                                >
-                                  No voucher
-                                </span>
-                              )}
-                            </td>
+                            </div>
+                          </td>
                         </tr>
                       ))
                     )}
