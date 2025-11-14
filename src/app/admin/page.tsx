@@ -207,8 +207,7 @@ export default function AdminDashboard() {
     const query = searchQuery.toLowerCase();
     const matchesSearch =
       tx.transaction_id?.toLowerCase().includes(query) ||
-      tx.email?.toLowerCase().includes(query) ||
-      tx.voucher_code?.toLowerCase().includes(query);
+      tx.email?.toLowerCase().includes(query);
 
     const matchesStatus = statusFilter === "ALL" || tx.status === statusFilter;
 
