@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import AddVoucherForm from "./add-voucher/page";
@@ -47,6 +47,9 @@ export default function AdminDashboard() {
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const endDateInputRef = useRef<HTMLInputElement>(null);
   const itemsPerPage = 10;
   const router = useRouter();
 
@@ -203,6 +206,9 @@ export default function AdminDashboard() {
     }
   };
 
+  // Get today's date in YYYY-MM-DD format for date input max validation
+  const today = new Date().toISOString().split("T")[0];
+
   const filteredTransactions = transactions.filter((tx) => {
     const query = searchQuery.toLowerCase();
     const matchesSearch =
@@ -211,7 +217,25 @@ export default function AdminDashboard() {
 
     const matchesStatus = statusFilter === "ALL" || tx.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    // Date filtering
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const txDate = new Date(tx.created_at);
+
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        matchesDate = matchesDate && txDate >= start;
+      }
+
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        matchesDate = matchesDate && txDate <= end;
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   // Pagination calculations
@@ -223,10 +247,10 @@ export default function AdminDashboard() {
     endIndex
   );
 
-  // Reset to page 1 when search query or status filter changes
+  // Reset to page 1 when search query, status filter, or date filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter]);
+  }, [searchQuery, statusFilter, startDate, endDate]);
 
   // Group available vouchers by product name
   const availableVouchersByProduct = voucherData.availableVouchers.reduce(
@@ -788,6 +812,107 @@ export default function AdminDashboard() {
                       >
                         ▼
                       </div>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        alignItems: "center",
+                        padding: "4px",
+                        border: "2px solid #E5E7EB",
+                        borderRadius: "8px",
+                        backgroundColor: "white",
+                      }}
+                    >
+                      <input
+                        type="date"
+                        value={startDate}
+                        max={endDate ? (endDate < today ? endDate : today) : today}
+                        onClick={(e) => {
+                          e.currentTarget.showPicker();
+                        }}
+                        onChange={(e) => {
+                          const newStartDate = e.target.value;
+                          setStartDate(newStartDate);
+
+                          // If new start date is after current end date, clear end date
+                          if (newStartDate && endDate && newStartDate > endDate) {
+                            setEndDate("");
+                          }
+
+                          if (newStartDate && endDateInputRef.current) {
+                            setTimeout(() => {
+                              endDateInputRef.current?.showPicker();
+                            }, 100);
+                          }
+                        }}
+                        placeholder="Tanggal Awal"
+                        style={{
+                          padding: "6px 12px",
+                          fontSize: "14px",
+                          border: "none",
+                          borderRadius: "4px",
+                          outline: "none",
+                          color: "#111827",
+                          cursor: "pointer",
+                          backgroundColor: "transparent",
+                        }}
+                      />
+                      <span style={{ color: "#6B7280", fontSize: "14px" }}>
+                        -
+                      </span>
+                      <input
+                        ref={endDateInputRef}
+                        type="date"
+                        value={endDate}
+                        min={startDate || undefined}
+                        max={today}
+                        onClick={(e) => {
+                          e.currentTarget.showPicker();
+                        }}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        placeholder="Tanggal Akhir"
+                        style={{
+                          padding: "6px 12px",
+                          fontSize: "14px",
+                          border: "none",
+                          borderRadius: "4px",
+                          outline: "none",
+                          color: "#111827",
+                          cursor: "pointer",
+                          backgroundColor: "transparent",
+                        }}
+                      />
+                      {(startDate || endDate) && (
+                        <button
+                          onClick={() => {
+                            setStartDate("");
+                            setEndDate("");
+                          }}
+                          style={{
+                            padding: "6px 10px",
+                            backgroundColor: "transparent",
+                            color: "#EF4444",
+                            border: "none",
+                            borderRadius: "4px",
+                            fontSize: "18px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                            lineHeight: "1",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "#FEE2E2";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                              "transparent";
+                          }}
+                          title="Clear dates"
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
                     <input
                       type="text"
