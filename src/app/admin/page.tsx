@@ -5,6 +5,22 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import AddVoucherForm from "./add-voucher/page";
 import StatisticsDashboard from "@/src/components/AdminDashboard";
+import Sidebar from "@/src/components/Sidebar";
+import {
+  DollarSign,
+  BarChart2,
+  Target,
+  Users,
+  Ticket,
+  CheckCircle,
+  Heart,
+  Plus,
+  Inbox,
+  Search,
+  Mail,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 
 interface Voucher {
   id: string;
@@ -38,8 +54,8 @@ export default function AdminDashboard() {
   const [showAddVoucher, setShowAddVoucher] = useState(false);
   const [transactionDateRange, setTransactionDateRange] = useState({ start: '', end: '' });
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState<"transactions" | "statistics">(
-    "statistics"
+  const [activeView, setActiveView] = useState<"dashboard" | "transactions">(
+    "dashboard"
   );
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [resendingEmails, setResendingEmails] = useState<Set<string>>(
@@ -49,6 +65,7 @@ export default function AdminDashboard() {
   const [resendError, setResendError] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [stats, setStats] = useState<any>(null);
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const itemsPerPage = 10;
   const router = useRouter();
 
@@ -290,30 +307,48 @@ export default function AdminDashboard() {
     )
   ).sort();
 
+  const handleNavigate = (page: string) => {
+    if (page === 'dashboard') {
+      setActiveView('dashboard');
+    } else if (page === 'transactions') {
+      setActiveView('transactions');
+    }
+  };
+
   if (loading) {
     return (
       <div
         style={{
           minHeight: "100vh",
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          background: "#e9e9ef",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <div style={{ color: "white", fontSize: "24px" }}>Loading...</div>
+        <div style={{ color: "#000000", fontSize: "24px", fontWeight: "700" }}>Loading...</div>
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-        padding: "40px 20px",
-      }}
-    >
+    <>
+      <Sidebar
+        userEmail={userEmail}
+        currentPage={activeView}
+        onNavigate={handleNavigate}
+        onLogout={handleLogout}
+        onExpandChange={setSidebarExpanded}
+      />
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#e9e9ef",
+          marginLeft: sidebarExpanded ? "280px" : "80px",
+          padding: "40px 20px",
+          transition: "margin-left 0.3s ease",
+        }}
+      >
       <style jsx>{`
         input::placeholder {
           color: #d1d5db;
@@ -343,28 +378,19 @@ export default function AdminDashboard() {
           <div>
             <h1
               style={{
-                color: "white",
+                color: "#000000",
                 fontSize: "36px",
                 fontWeight: "bold",
                 marginBottom: "8px",
               }}
             >
-              Admin Dashboard
+              {activeView === "dashboard" ? "Dashboard" : "Transactions & Vouchers"}
             </h1>
-            <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "16px" }}>
-              Monitor your transactions and voucher inventory
+            <p style={{ color: "#1f2937", fontSize: "16px", fontWeight: "600" }}>
+              {activeView === "dashboard"
+                ? "Track your business performance and insights"
+                : "Monitor your transactions and voucher inventory"}
             </p>
-            {userEmail && (
-              <p
-                style={{
-                  color: "rgba(255,255,255,0.9)",
-                  fontSize: "14px",
-                  marginTop: "8px",
-                }}
-              >
-                Logged in as: {userEmail}
-              </p>
-            )}
           </div>
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             <button
@@ -372,9 +398,9 @@ export default function AdminDashboard() {
               disabled={isRefreshing}
               style={{
                 padding: "12px 24px",
-                backgroundColor: "rgba(255,255,255,0.2)",
-                color: "white",
-                border: "2px solid white",
+                backgroundColor: "white",
+                color: "#10b981",
+                border: "2px solid #e5e7eb",
                 borderRadius: "8px",
                 fontSize: "16px",
                 fontWeight: "600",
@@ -384,103 +410,26 @@ export default function AdminDashboard() {
               }}
               onMouseEnter={(e) => {
                 if (!isRefreshing) {
-                  e.currentTarget.style.backgroundColor = "white";
-                  e.currentTarget.style.color = "#10b981";
+                  e.currentTarget.style.backgroundColor = "#10b981";
+                  e.currentTarget.style.color = "white";
+                  e.currentTarget.style.borderColor = "#10b981";
                 }
               }}
               onMouseLeave={(e) => {
                 if (!isRefreshing) {
-                  e.currentTarget.style.backgroundColor =
-                    "rgba(255,255,255,0.2)";
-                  e.currentTarget.style.color = "white";
+                  e.currentTarget.style.backgroundColor = "white";
+                  e.currentTarget.style.color = "#10b981";
+                  e.currentTarget.style.borderColor = "#e5e7eb";
                 }
               }}
             >
-              {isRefreshing ? "🔄 Refreshing..." : "🔄 Refresh Data"}
-            </button>
-            <button
-              onClick={handleLogout}
-              style={{
-                padding: "12px 24px",
-                backgroundColor: "rgba(255,255,255,0.2)",
-                color: "white",
-                border: "2px solid white",
-                borderRadius: "8px",
-                fontSize: "16px",
-                fontWeight: "600",
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "white";
-                e.currentTarget.style.color = "#667eea";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.2)";
-                e.currentTarget.style.color = "white";
-              }}
-            >
-              🚪 Logout
+              {isRefreshing ? "Refreshing..." : "Refresh Data"}
             </button>
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div
-          style={{
-            marginBottom: "30px",
-            display: "flex",
-            gap: "12px",
-            borderBottom: "2px solid rgba(255,255,255,0.2)",
-            paddingBottom: "0",
-          }}
-        >
-          <button
-            onClick={() => setActiveTab("statistics")}
-            style={{
-              padding: "12px 24px",
-              backgroundColor:
-                activeTab === "statistics" ? "white" : "transparent",
-              color: activeTab === "statistics" ? "#667eea" : "white",
-              border: "none",
-              borderRadius: "8px 8px 0 0",
-              fontSize: "16px",
-              fontWeight: "600",
-              cursor: "pointer",
-              transition: "all 0.2s",
-              borderBottom:
-                activeTab === "statistics"
-                  ? "3px solid #667eea"
-                  : "3px solid transparent",
-            }}
-          >
-            📈 Dashboard
-          </button>
-          <button
-            onClick={() => setActiveTab("transactions")}
-            style={{
-              padding: "12px 24px",
-              backgroundColor:
-                activeTab === "transactions" ? "white" : "transparent",
-              color: activeTab === "transactions" ? "#667eea" : "white",
-              border: "none",
-              borderRadius: "8px 8px 0 0",
-              fontSize: "16px",
-              fontWeight: "600",
-              cursor: "pointer",
-              transition: "all 0.2s",
-              borderBottom:
-                activeTab === "transactions"
-                  ? "3px solid #667eea"
-                  : "3px solid transparent",
-            }}
-          >
-            📊 Transactions & Vouchers
-          </button>
-        </div>
-
-        {/* Key Metrics Cards - Only visible on Dashboard tab */}
-        {activeTab === "statistics" && stats && (
+        {/* Key Metrics Cards - Only visible on Dashboard view */}
+        {activeView === "dashboard" && stats && (
           <div
             style={{
               display: "grid",
@@ -497,7 +446,7 @@ export default function AdminDashboard() {
                 minimumFractionDigits: 0,
               }).format(stats.sales.totalRevenue)}
               subtitle={`${stats.sales.successfulTransactions} successful`}
-              icon="💰"
+              icon={<DollarSign size={24} />}
               gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
               trend={`+${(stats.sales.conversionRate).toFixed(1)}%`}
             />
@@ -509,7 +458,7 @@ export default function AdminDashboard() {
                 minimumFractionDigits: 0,
               }).format(stats.sales.averageOrderValue)}
               subtitle={`${stats.sales.totalTransactions} total orders`}
-              icon="📊"
+              icon={<BarChart2 size={24} />}
               gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
               trend={(stats.sales.conversionRate).toFixed(1) + '%'}
             />
@@ -517,7 +466,7 @@ export default function AdminDashboard() {
               title="Conversion Rate"
               value={(stats.sales.conversionRate).toFixed(1) + '%'}
               subtitle="Success rate"
-              icon="🎯"
+              icon={<Target size={24} />}
               gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
               trend={`${stats.sales.successfulTransactions}/${stats.sales.totalTransactions}`}
             />
@@ -525,15 +474,15 @@ export default function AdminDashboard() {
               title="Total Visitors"
               value={stats.traffic.totalVisitors.toString()}
               subtitle={`${stats.traffic.repeatCustomers} returning`}
-              icon="👥"
+              icon={<Users size={24} />}
               gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
               trend={((stats.traffic.repeatCustomers / stats.traffic.totalVisitors) * 100).toFixed(1) + '%'}
             />
           </div>
         )}
 
-        {/* Transactions & Vouchers Tab Content */}
-        {activeTab === "transactions" && (
+        {/* Transactions & Vouchers View Content */}
+        {activeView === "transactions" && (
           <>
             {/* Stats Cards */}
             <div
@@ -547,19 +496,19 @@ export default function AdminDashboard() {
               <StatCard
                 title="Total Vouchers"
                 value={voucherData.total}
-                icon="🎟️"
+                icon={<Ticket size={24} />}
                 color="#4F46E5"
               />
               <StatCard
                 title="Redeemed Vouchers"
                 value={voucherData.used}
-                icon="✅"
+                icon={<CheckCircle size={24} />}
                 color="#F59E0B"
               />
               <StatCard
                 title="Available Vouchers"
                 value={voucherData.available}
-                icon="💚"
+                icon={<Heart size={24} />}
                 color="#10B981"
               />
             </div>
@@ -569,8 +518,7 @@ export default function AdminDashboard() {
               style={{
                 backgroundColor: "white",
                 borderRadius: "16px",
-                boxShadow:
-                  "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                border: "1px solid #e5e7eb",
                 overflow: "hidden",
                 marginBottom: "40px",
               }}
@@ -616,15 +564,13 @@ export default function AdminDashboard() {
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = "translateY(-2px)";
-                        e.currentTarget.style.boxShadow =
-                          "0 4px 12px rgba(0,0,0,0.15)";
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = "none";
                       }}
                     >
-                      ➕ Add Voucher
+                      <Plus size={16} style={{ display: 'inline', marginRight: '6px' }} />
+                      Add Voucher
                     </button>
                   )}
                 </div>
@@ -704,9 +650,13 @@ export default function AdminDashboard() {
                           }}
                         >
                           <div
-                            style={{ fontSize: "48px", marginBottom: "16px" }}
+                            style={{
+                              display: "flex",
+                              justifyContent: "center",
+                              marginBottom: "16px",
+                            }}
                           >
-                            📭
+                            <Inbox size={48} color="#9CA3AF" />
                           </div>
                           <div style={{ fontSize: "18px", fontWeight: "500" }}>
                             No vouchers
@@ -850,9 +800,11 @@ export default function AdminDashboard() {
                 <div
                   style={{ display: "flex", alignItems: "center", gap: "12px" }}
                 >
-                  <span style={{ fontSize: "20px" }}>
-                    {resendSuccess ? "✅" : "❌"}
-                  </span>
+                  {resendSuccess ? (
+                    <CheckCircle2 size={20} color="#065F46" />
+                  ) : (
+                    <XCircle size={20} color="#991B1B" />
+                  )}
                   <span
                     style={{
                       color: resendSuccess ? "#065F46" : "#991B1B",
@@ -887,8 +839,7 @@ export default function AdminDashboard() {
               style={{
                 backgroundColor: "white",
                 borderRadius: "16px",
-                boxShadow:
-                  "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                border: "1px solid #e5e7eb",
                 overflow: "hidden",
               }}
             >
@@ -1159,9 +1110,17 @@ export default function AdminDashboard() {
                           }}
                         >
                           <div
-                            style={{ fontSize: "48px", marginBottom: "16px" }}
+                            style={{
+                              display: "flex",
+                              justifyContent: "center",
+                              marginBottom: "16px",
+                            }}
                           >
-                            {transactions.length === 0 ? "📭" : "🔍"}
+                            {transactions.length === 0 ? (
+                              <Inbox size={48} color="#9CA3AF" />
+                            ) : (
+                              <Search size={48} color="#9CA3AF" />
+                            )}
                           </div>
                           <div style={{ fontSize: "18px", fontWeight: "500" }}>
                             {transactions.length === 0
@@ -1355,8 +1314,6 @@ export default function AdminDashboard() {
                                         backgroundColor: "white",
                                         border: "1px solid #E5E7EB",
                                         borderRadius: "8px",
-                                        boxShadow:
-                                          "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
                                         zIndex: 1000,
                                         minWidth: "180px",
                                         marginTop: "4px",
@@ -1431,7 +1388,10 @@ export default function AdminDashboard() {
                                             Sending...
                                           </>
                                         ) : (
-                                          <>📧 Resend Email</>
+                                          <>
+                                            <Mail size={14} />
+                                            Resend Email
+                                          </>
                                         )}
                                       </button>
                                     </div>
@@ -1642,7 +1602,7 @@ export default function AdminDashboard() {
                     maxWidth: "800px",
                     width: "100%",
                     maxHeight: "90vh",
-                    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+                    border: "1px solid #e5e7eb",
                     position: "relative",
                   }}
                 >
@@ -1692,15 +1652,14 @@ export default function AdminDashboard() {
           </>
         )}
 
-        {/* Statistics Dashboard Tab Content */}
-        {activeTab === "statistics" && (
+        {/* Statistics Dashboard View Content */}
+        {activeView === "dashboard" && (
           <div
             style={{
               backgroundColor: "white",
               borderRadius: "16px",
               padding: "20px",
-              boxShadow:
-                "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+              border: "1px solid #e5e7eb",
             }}
           >
             <StatisticsDashboard />
@@ -1708,6 +1667,7 @@ export default function AdminDashboard() {
         )}
       </div>
     </div>
+    </>
   );
 }
 
@@ -1722,7 +1682,7 @@ function MetricCard({
   title: string;
   value: string;
   subtitle: string;
-  icon: string;
+  icon: React.ReactNode;
   gradient: string;
   trend: string;
 }) {
@@ -1731,19 +1691,17 @@ function MetricCard({
       background: 'white',
       borderRadius: '20px',
       padding: '24px',
-      boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
+      border: '1px solid #e5e7eb',
       position: 'relative',
       overflow: 'hidden',
-      transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+      transition: 'transform 0.3s ease',
       cursor: 'pointer',
     }}
     onMouseEnter={(e) => {
       e.currentTarget.style.transform = 'translateY(-5px)';
-      e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.12)';
     }}
     onMouseLeave={(e) => {
       e.currentTarget.style.transform = 'translateY(0)';
-      e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,0,0,0.08)';
     }}>
       {/* Background gradient circle */}
       <div style={{
@@ -1770,8 +1728,7 @@ function MetricCard({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '24px',
-            boxShadow: '0 8px 16px rgba(0,0,0,0.15)',
+            color: 'white',
           }}>
             {icon}
           </div>
@@ -1815,64 +1772,74 @@ function StatCard({
 }: {
   title: string;
   value: number;
-  icon: string;
+  icon: React.ReactNode;
   color: string;
 }) {
+  // Map colors to gradients
+  const gradientMap: Record<string, string> = {
+    '#4F46E5': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    '#F59E0B': 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    '#10B981': 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+  };
+  const gradient = gradientMap[color] || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+
   return (
     <div
       style={{
-        backgroundColor: "white",
-        borderRadius: "12px",
-        padding: "24px",
-        boxShadow:
-          "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+        background: 'white',
+        borderRadius: '20px',
+        padding: '24px',
+        border: '1px solid #e5e7eb',
+        position: 'relative',
+        overflow: 'hidden',
+        transition: 'transform 0.3s ease',
+        cursor: 'pointer',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-5px)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "start",
-          marginBottom: "16px",
-        }}
-      >
-        <div>
-          <p
-            style={{
-              color: "#6B7280",
-              fontSize: "14px",
-              fontWeight: "500",
-              margin: "0 0 8px 0",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-            }}
-          >
+      {/* Background gradient circle */}
+      <div style={{
+        position: 'absolute',
+        top: '-50px',
+        right: '-50px',
+        width: '150px',
+        height: '150px',
+        background: gradient,
+        borderRadius: '50%',
+        opacity: 0.1,
+      }} />
+
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+          <div style={{ fontSize: '14px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             {title}
-          </p>
-          <p
-            style={{
-              fontSize: "36px",
-              fontWeight: "bold",
-              margin: 0,
-              color: "#111827",
-            }}
-          >
-            {value}
-          </p>
+          </div>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background: gradient,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+          }}>
+            {icon}
+          </div>
         </div>
-        <div
-          style={{
-            width: "48px",
-            height: "48px",
-            borderRadius: "12px",
-            backgroundColor: color + "20",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "24px",
-          }}
-        >
-          {icon}
+
+        <div style={{
+          fontSize: '36px',
+          fontWeight: 'bold',
+          color: '#1f2937',
+          lineHeight: '1.2',
+        }}>
+          {value}
         </div>
       </div>
     </div>
