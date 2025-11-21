@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import AddVoucherForm from "./add-voucher/page";
@@ -36,6 +36,7 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [showAddVoucher, setShowAddVoucher] = useState(false);
+  const [transactionDateRange, setTransactionDateRange] = useState({ start: '', end: '' });
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState<"transactions" | "statistics">(
     "statistics"
@@ -47,15 +48,14 @@ export default function AdminDashboard() {
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
-  const endDateInputRef = useRef<HTMLInputElement>(null);
+  const [stats, setStats] = useState<any>(null);
   const itemsPerPage = 10;
   const router = useRouter();
 
   useEffect(() => {
     checkAuth();
     fetchData();
+    fetchStatistics();
   }, []);
 
   useEffect(() => {
@@ -71,6 +71,16 @@ export default function AdminDashboard() {
       document.removeEventListener("click", handleClickOutside);
     };
   }, [openDropdown]);
+
+  const fetchStatistics = async () => {
+    try {
+      const response = await fetch(`/api/admin/statistics?days=365`);
+      const data = await response.json();
+      setStats(data);
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+    }
+  };
 
   const checkAuth = async () => {
     const {
@@ -99,7 +109,7 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     try {
       // Fetch transactions
-      const { data: txData, error: txError } = await supabase
+      const { data: txData, error: txError} = await supabase
         .from("transactions")
         .select("*")
         .order("created_at", { ascending: false });
@@ -206,9 +216,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Get today's date in YYYY-MM-DD format for date input max validation
-  const today = new Date().toISOString().split("T")[0];
-
   const filteredTransactions = transactions.filter((tx) => {
     const query = searchQuery.toLowerCase();
     const matchesSearch =
@@ -217,25 +224,20 @@ export default function AdminDashboard() {
 
     const matchesStatus = statusFilter === "ALL" || tx.status === statusFilter;
 
-    // Date filtering
-    let matchesDate = true;
-    if (startDate || endDate) {
+    // Date range filtering
+    let matchesDateRange = true;
+    if (transactionDateRange.start || transactionDateRange.end) {
+      // Get the date in local timezone (not UTC) to match the date picker
       const txDate = new Date(tx.created_at);
+      const localDateStr = txDate.getFullYear() + '-' +
+                          String(txDate.getMonth() + 1).padStart(2, '0') + '-' +
+                          String(txDate.getDate()).padStart(2, '0');
 
-      if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        matchesDate = matchesDate && txDate >= start;
-      }
-
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        matchesDate = matchesDate && txDate <= end;
-      }
+      matchesDateRange = (!transactionDateRange.start || localDateStr >= transactionDateRange.start) &&
+                        (!transactionDateRange.end || localDateStr <= transactionDateRange.end);
     }
 
-    return matchesSearch && matchesStatus && matchesDate;
+    return matchesSearch && matchesStatus && matchesDateRange;
   });
 
   // Pagination calculations
@@ -247,10 +249,10 @@ export default function AdminDashboard() {
     endIndex
   );
 
-  // Reset to page 1 when search query, status filter, or date filters change
+  // Reset to page 1 when search query, status filter, or date range changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, startDate, endDate]);
+  }, [searchQuery, statusFilter, transactionDateRange.start, transactionDateRange.end]);
 
   // Group available vouchers by product name
   const availableVouchersByProduct = voucherData.availableVouchers.reduce(
@@ -477,6 +479,59 @@ export default function AdminDashboard() {
           </button>
         </div>
 
+        {/* Key Metrics Cards - Only visible on Dashboard tab */}
+        {activeTab === "statistics" && stats && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: "20px",
+              marginBottom: "40px",
+            }}
+          >
+            <MetricCard
+              title="Total Revenue"
+              value={new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0,
+              }).format(stats.sales.totalRevenue)}
+              subtitle={`${stats.sales.successfulTransactions} successful`}
+              icon="💰"
+              gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+              trend={`+${(stats.sales.conversionRate).toFixed(1)}%`}
+            />
+            <MetricCard
+              title="Avg Order Value"
+              value={new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0,
+              }).format(stats.sales.averageOrderValue)}
+              subtitle={`${stats.sales.totalTransactions} total orders`}
+              icon="📊"
+              gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
+              trend={(stats.sales.conversionRate).toFixed(1) + '%'}
+            />
+            <MetricCard
+              title="Conversion Rate"
+              value={(stats.sales.conversionRate).toFixed(1) + '%'}
+              subtitle="Success rate"
+              icon="🎯"
+              gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
+              trend={`${stats.sales.successfulTransactions}/${stats.sales.totalTransactions}`}
+            />
+            <MetricCard
+              title="Total Visitors"
+              value={stats.traffic.totalVisitors.toString()}
+              subtitle={`${stats.traffic.repeatCustomers} returning`}
+              icon="👥"
+              gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
+              trend={((stats.traffic.repeatCustomers / stats.traffic.totalVisitors) * 100).toFixed(1) + '%'}
+            />
+          </div>
+        )}
+
         {/* Transactions & Vouchers Tab Content */}
         {activeTab === "transactions" && (
           <>
@@ -579,21 +634,69 @@ export default function AdminDashboard() {
                 <table
                   style={{
                     width: "100%",
-                    borderCollapse: "collapse",
+                    borderCollapse: "separate",
+                    borderSpacing: "0 8px",
                   }}
                 >
                   <thead>
-                    <tr style={{ backgroundColor: "#F9FAFB" }}>
-                      <th style={tableHeaderStyle}>Product Name</th>
-                      <th style={tableHeaderStyle}>Total Available</th>
-                      <th style={tableHeaderStyle}>Total Used</th>
+                    <tr>
+                      <th style={{
+                        padding: "12px 20px",
+                        textAlign: "left",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        background: "#f9fafb",
+                      }}>Product Name</th>
+                      <th style={{
+                        padding: "12px 20px",
+                        textAlign: "center",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        background: "#f9fafb",
+                      }}>Total</th>
+                      <th style={{
+                        padding: "12px 20px",
+                        textAlign: "center",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        background: "#f9fafb",
+                      }}>Available</th>
+                      <th style={{
+                        padding: "12px 20px",
+                        textAlign: "center",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        background: "#f9fafb",
+                      }}>Used</th>
+                      <th style={{
+                        padding: "12px 20px",
+                        textAlign: "right",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        background: "#f9fafb",
+                      }}>Usage</th>
                     </tr>
                   </thead>
                   <tbody>
                     {allProductNames.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={3}
+                          colSpan={5}
                           style={{
                             textAlign: "center",
                             padding: "60px 20px",
@@ -619,58 +722,107 @@ export default function AdminDashboard() {
                           availableVouchersByProduct[productName] || 0;
                         const totalUsed =
                           usedVouchersByProduct[productName] || 0;
+                        const total = availableCount + totalUsed;
+                        const utilizationRate = total > 0 ? (totalUsed / total) * 100 : 0;
+                        const bgColor = index % 2 === 0 ? "#fafafa" : "#ffffff";
 
                         return (
-                          <tr
-                            key={productName}
-                            style={{
-                              borderBottom: "1px solid #F3F4F6",
-                              backgroundColor:
-                                index % 2 === 0 ? "white" : "#FAFAFA",
-                            }}
-                          >
-                            <td style={tableCellStyle}>
+                          <tr key={productName}>
+                            <td style={{
+                              padding: "16px 20px",
+                              borderRadius: "12px 0 0 12px",
+                              background: bgColor,
+                            }}>
                               <span
                                 style={{
-                                  color: "#374151",
-                                  fontWeight: "500",
+                                  fontWeight: "600",
+                                  color: "#1f2937",
+                                  fontSize: "15px",
                                   textTransform: "capitalize",
                                 }}
                               >
                                 {productName}
                               </span>
                             </td>
-                            <td style={tableCellStyle}>
+                            <td style={{
+                              padding: "16px 20px",
+                              textAlign: "center",
+                              background: bgColor,
+                              fontWeight: "700",
+                              color: "#4b5563",
+                            }}>
+                              {total}
+                            </td>
+                            <td style={{
+                              padding: "16px 20px",
+                              textAlign: "center",
+                              background: bgColor,
+                            }}>
                               <span
                                 style={{
-                                  display: "inline-block",
                                   padding: "6px 16px",
-                                  backgroundColor:
-                                    availableCount > 0 ? "#DCFCE7" : "#F3F4F6",
-                                  color:
-                                    availableCount > 0 ? "#166534" : "#6B7280",
-                                  borderRadius: "9999px",
-                                  fontWeight: "600",
+                                  borderRadius: "999px",
+                                  background: availableCount > 0 ? "linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)" : "#e5e7eb",
+                                  color: availableCount > 0 ? "#065f46" : "#6b7280",
+                                  fontWeight: "700",
                                   fontSize: "14px",
                                 }}
                               >
-                                {availableCount} available
+                                {availableCount}
                               </span>
                             </td>
-                            <td style={tableCellStyle}>
+                            <td style={{
+                              padding: "16px 20px",
+                              textAlign: "center",
+                              background: bgColor,
+                            }}>
                               <span
                                 style={{
-                                  display: "inline-block",
                                   padding: "6px 16px",
-                                  backgroundColor: "#FEF3C7",
-                                  color: "#92400E",
-                                  borderRadius: "9999px",
-                                  fontWeight: "600",
+                                  borderRadius: "999px",
+                                  background: "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
+                                  color: "#92400e",
+                                  fontWeight: "700",
                                   fontSize: "14px",
                                 }}
                               >
-                                {totalUsed} used
+                                {totalUsed}
                               </span>
+                            </td>
+                            <td style={{
+                              padding: "16px 20px",
+                              textAlign: "right",
+                              borderRadius: "0 12px 12px 0",
+                              background: bgColor,
+                            }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px" }}>
+                                <div style={{
+                                  width: "100px",
+                                  height: "10px",
+                                  background: "#e5e7eb",
+                                  borderRadius: "999px",
+                                  overflow: "hidden",
+                                }}>
+                                  <div style={{
+                                    width: `${utilizationRate}%`,
+                                    height: "100%",
+                                    background: utilizationRate > 75
+                                      ? "linear-gradient(90deg, #f093fb 0%, #f5576c 100%)"
+                                      : utilizationRate > 50
+                                      ? "linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)"
+                                      : "linear-gradient(90deg, #43e97b 0%, #38f9d7 100%)",
+                                    transition: "width 1s ease-out",
+                                  }} />
+                                </div>
+                                <span style={{
+                                  fontWeight: "700",
+                                  color: "#4b5563",
+                                  fontSize: "14px",
+                                  minWidth: "50px",
+                                }}>
+                                  {utilizationRate.toFixed(1)}%
+                                </span>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -768,6 +920,90 @@ export default function AdminDashboard() {
                   <div
                     style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}
                   >
+                    {/* Date Range Filter */}
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        alignItems: "center",
+                        padding: "4px",
+                        border: "2px solid #E5E7EB",
+                        borderRadius: "8px",
+                        backgroundColor: "white",
+                      }}
+                    >
+                      <input
+                        type="date"
+                        value={transactionDateRange.start}
+                        max={transactionDateRange.end || new Date().toISOString().split('T')[0]}
+                        onChange={(e) => {
+                          const newStartDate = e.target.value;
+                          setTransactionDateRange(prev => ({
+                            ...prev,
+                            start: newStartDate,
+                          }));
+                          // If new start date is after current end date, clear end date
+                          if (newStartDate && transactionDateRange.end && newStartDate > transactionDateRange.end) {
+                            setTransactionDateRange(prev => ({ ...prev, end: '' }));
+                          }
+                        }}
+                        style={{
+                          padding: "6px 12px",
+                          fontSize: "14px",
+                          border: "none",
+                          borderRadius: "4px",
+                          outline: "none",
+                          color: "#111827",
+                          cursor: "pointer",
+                          backgroundColor: "transparent",
+                        }}
+                      />
+                      <span style={{ color: "#6B7280", fontSize: "14px" }}>-</span>
+                      <input
+                        type="date"
+                        value={transactionDateRange.end}
+                        min={transactionDateRange.start || undefined}
+                        max={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => setTransactionDateRange(prev => ({ ...prev, end: e.target.value }))}
+                        style={{
+                          padding: "6px 12px",
+                          fontSize: "14px",
+                          border: "none",
+                          borderRadius: "4px",
+                          outline: "none",
+                          color: "#111827",
+                          cursor: "pointer",
+                          backgroundColor: "transparent",
+                        }}
+                      />
+                      {(transactionDateRange.start || transactionDateRange.end) && (
+                        <button
+                          onClick={() => setTransactionDateRange({ start: '', end: '' })}
+                          style={{
+                            padding: "6px 10px",
+                            backgroundColor: "transparent",
+                            color: "#EF4444",
+                            border: "none",
+                            borderRadius: "4px",
+                            fontSize: "18px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                            lineHeight: "1",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "#FEE2E2";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = "transparent";
+                          }}
+                          title="Clear dates"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+
                     <div style={{ position: "relative" }}>
                       <select
                         value={statusFilter}
@@ -813,107 +1049,6 @@ export default function AdminDashboard() {
                         ▼
                       </div>
                     </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "8px",
-                        alignItems: "center",
-                        padding: "4px",
-                        border: "2px solid #E5E7EB",
-                        borderRadius: "8px",
-                        backgroundColor: "white",
-                      }}
-                    >
-                      <input
-                        type="date"
-                        value={startDate}
-                        max={endDate ? (endDate < today ? endDate : today) : today}
-                        onClick={(e) => {
-                          e.currentTarget.showPicker();
-                        }}
-                        onChange={(e) => {
-                          const newStartDate = e.target.value;
-                          setStartDate(newStartDate);
-
-                          // If new start date is after current end date, clear end date
-                          if (newStartDate && endDate && newStartDate > endDate) {
-                            setEndDate("");
-                          }
-
-                          if (newStartDate && endDateInputRef.current) {
-                            setTimeout(() => {
-                              endDateInputRef.current?.showPicker();
-                            }, 100);
-                          }
-                        }}
-                        placeholder="Tanggal Awal"
-                        style={{
-                          padding: "6px 12px",
-                          fontSize: "14px",
-                          border: "none",
-                          borderRadius: "4px",
-                          outline: "none",
-                          color: "#111827",
-                          cursor: "pointer",
-                          backgroundColor: "transparent",
-                        }}
-                      />
-                      <span style={{ color: "#6B7280", fontSize: "14px" }}>
-                        -
-                      </span>
-                      <input
-                        ref={endDateInputRef}
-                        type="date"
-                        value={endDate}
-                        min={startDate || undefined}
-                        max={today}
-                        onClick={(e) => {
-                          e.currentTarget.showPicker();
-                        }}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        placeholder="Tanggal Akhir"
-                        style={{
-                          padding: "6px 12px",
-                          fontSize: "14px",
-                          border: "none",
-                          borderRadius: "4px",
-                          outline: "none",
-                          color: "#111827",
-                          cursor: "pointer",
-                          backgroundColor: "transparent",
-                        }}
-                      />
-                      {(startDate || endDate) && (
-                        <button
-                          onClick={() => {
-                            setStartDate("");
-                            setEndDate("");
-                          }}
-                          style={{
-                            padding: "6px 10px",
-                            backgroundColor: "transparent",
-                            color: "#EF4444",
-                            border: "none",
-                            borderRadius: "4px",
-                            fontSize: "18px",
-                            fontWeight: "600",
-                            cursor: "pointer",
-                            transition: "all 0.2s",
-                            lineHeight: "1",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = "#FEE2E2";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor =
-                              "transparent";
-                          }}
-                          title="Clear dates"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
                     <input
                       type="text"
                       placeholder="Search by transaction ID or email..."
@@ -944,18 +1079,72 @@ export default function AdminDashboard() {
                 <table
                   style={{
                     width: "100%",
-                    borderCollapse: "collapse",
+                    borderCollapse: "separate",
+                    borderSpacing: "0 8px",
                   }}
                 >
                   <thead>
-                    <tr style={{ backgroundColor: "#F9FAFB" }}>
-                      <th style={tableHeaderStyle}>Email</th>
-                      <th style={tableHeaderStyle}>Transaction ID</th>
-                      <th style={tableHeaderStyle}>Payment Status</th>
-                      {/* <th style={tableHeaderStyle}>Voucher Code</th> */}
-                      <th style={tableHeaderStyle}>Amount</th>
-                      <th style={tableHeaderStyle}>Transaction Created</th>
-                      <th style={tableHeaderStyle}></th>
+                    <tr>
+                      <th style={{
+                        padding: "12px 20px",
+                        textAlign: "left",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        background: "#f9fafb",
+                      }}>Email</th>
+                      <th style={{
+                        padding: "12px 20px",
+                        textAlign: "left",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        background: "#f9fafb",
+                      }}>Transaction ID</th>
+                      <th style={{
+                        padding: "12px 20px",
+                        textAlign: "center",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        background: "#f9fafb",
+                      }}>Payment Status</th>
+                      <th style={{
+                        padding: "12px 20px",
+                        textAlign: "right",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        background: "#f9fafb",
+                      }}>Amount</th>
+                      <th style={{
+                        padding: "12px 20px",
+                        textAlign: "center",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        background: "#f9fafb",
+                      }}>Transaction Created</th>
+                      <th style={{
+                        padding: "12px 20px",
+                        textAlign: "center",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        background: "#f9fafb",
+                      }}></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -990,16 +1179,18 @@ export default function AdminDashboard() {
                       paginatedTransactions.map((tx, index) => (
                         <tr
                           key={tx.id}
-                          style={{
-                            borderBottom: "1px solid #F3F4F6",
-                            backgroundColor:
-                              index % 2 === 0 ? "white" : "#FAFAFA",
-                          }}
                         >
-                          <td style={tableCellStyle}>
-                            <span style={{ color: "#374151" }}>{tx.email}</span>
+                          <td style={{
+                            padding: "16px 20px",
+                            borderRadius: "12px 0 0 12px",
+                            background: index % 2 === 0 ? "#fafafa" : "#ffffff",
+                          }}>
+                            <span style={{ color: "#374151", fontWeight: "500" }}>{tx.email}</span>
                           </td>
-                          <td style={tableCellStyle}>
+                          <td style={{
+                            padding: "16px 20px",
+                            background: index % 2 === 0 ? "#fafafa" : "#ffffff",
+                          }}>
                             <span
                               style={{
                                 fontFamily: "monospace",
@@ -1010,7 +1201,11 @@ export default function AdminDashboard() {
                               {tx.transaction_id}
                             </span>
                           </td>
-                          <td style={tableCellStyle}>
+                          <td style={{
+                            padding: "16px 20px",
+                            textAlign: "center",
+                            background: index % 2 === 0 ? "#fafafa" : "#ffffff",
+                          }}>
                             {(() => {
                               const statusColors = {
                                 SUCCESSFUL: {
@@ -1052,44 +1247,32 @@ export default function AdminDashboard() {
                               );
                             })()}
                           </td>
-                          {/* <td style={tableCellStyle}>
-                        {tx.voucher_code ? (
-                          <span
-                            style={{
-                              display: "inline-block",
-                              padding: "6px 12px",
-                              backgroundColor: "#EEF2FF",
-                              color: "#4F46E5",
-                              borderRadius: "6px",
-                              fontWeight: "600",
-                              fontSize: "14px",
-                              fontFamily: "monospace",
-                            }}
-                          >
-                            {tx.voucher_code}
-                          </span>
-                        ) : (
-                          <span style={{ color: "#9CA3AF" }}>-</span>
-                        )}
-                      </td> */}
-                          <td style={tableCellStyle}>
+                          <td style={{
+                            padding: "16px 20px",
+                            textAlign: "right",
+                            background: index % 2 === 0 ? "#fafafa" : "#ffffff",
+                          }}>
                             <span
                               style={{
-                                fontWeight: "600",
+                                fontWeight: "700",
                                 color: "#111827",
+                                fontSize: "15px",
                               }}
                             >
-                              Rp
-                              {(
+                              Rp{(
                                 tx.discounted_amount || tx.amount
                               )?.toLocaleString("id-ID")}
                             </span>
                           </td>
-                          <td style={tableCellStyle}>
+                          <td style={{
+                            padding: "16px 20px",
+                            textAlign: "center",
+                            background: index % 2 === 0 ? "#fafafa" : "#ffffff",
+                          }}>
                             <span
                               style={{
                                 color: "#6B7280",
-                                fontSize: "14px",
+                                fontSize: "13px",
                               }}
                             >
                               {new Date(tx.created_at).toLocaleString("id-ID", {
@@ -1105,7 +1288,9 @@ export default function AdminDashboard() {
                           </td>
                           <td
                             style={{
-                              ...tableCellStyle,
+                              padding: "16px 20px",
+                              borderRadius: "0 12px 12px 0",
+                              background: index % 2 === 0 ? "#fafafa" : "#ffffff",
                               position: "relative",
                             }}
                           >
@@ -1526,6 +1711,102 @@ export default function AdminDashboard() {
   );
 }
 
+function MetricCard({
+  title,
+  value,
+  subtitle,
+  icon,
+  gradient,
+  trend,
+}: {
+  title: string;
+  value: string;
+  subtitle: string;
+  icon: string;
+  gradient: string;
+  trend: string;
+}) {
+  return (
+    <div style={{
+      background: 'white',
+      borderRadius: '20px',
+      padding: '24px',
+      boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
+      position: 'relative',
+      overflow: 'hidden',
+      transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+      cursor: 'pointer',
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.transform = 'translateY(-5px)';
+      e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.12)';
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.transform = 'translateY(0)';
+      e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,0,0,0.08)';
+    }}>
+      {/* Background gradient circle */}
+      <div style={{
+        position: 'absolute',
+        top: '-50px',
+        right: '-50px',
+        width: '150px',
+        height: '150px',
+        background: gradient,
+        borderRadius: '50%',
+        opacity: 0.1,
+      }} />
+
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+          <div style={{ fontSize: '14px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            {title}
+          </div>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background: gradient,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '24px',
+            boxShadow: '0 8px 16px rgba(0,0,0,0.15)',
+          }}>
+            {icon}
+          </div>
+        </div>
+
+        <div style={{
+          fontSize: '32px',
+          fontWeight: 'bold',
+          color: '#1f2937',
+          marginBottom: '8px',
+          lineHeight: '1.2',
+        }}>
+          {value}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '13px', color: '#9ca3af' }}>
+            {subtitle}
+          </div>
+          <div style={{
+            fontSize: '12px',
+            fontWeight: '700',
+            padding: '4px 10px',
+            borderRadius: '999px',
+            background: 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)',
+            color: '#065f46',
+          }}>
+            {trend}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StatCard({
   title,
   value,
@@ -1598,16 +1879,3 @@ function StatCard({
   );
 }
 
-const tableHeaderStyle = {
-  padding: "16px 24px",
-  textAlign: "left" as const,
-  fontSize: "12px",
-  fontWeight: "600" as const,
-  color: "#6B7280",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.5px",
-};
-
-const tableCellStyle = {
-  padding: "16px 24px",
-};

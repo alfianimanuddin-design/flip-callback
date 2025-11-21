@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -82,16 +82,58 @@ interface Statistics {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState(30);
+  const [selectedTimeRange, setSelectedTimeRange] = useState<string>('all');
+  const [productDateRange, setProductDateRange] = useState({ start: '', end: '' });
+
+  // Date filters for time-based charts (section 2 only)
+  const [revenueTrendDates, setRevenueTrendDates] = useState({ start: '', end: '' });
+  const [transactionStatusDates, setTransactionStatusDates] = useState({ start: '', end: '' });
+  const [dailyTransactionsDates, setDailyTransactionsDates] = useState({ start: '', end: '' });
+
+  // Helper to apply time range to all charts
+  const applyTimeRangeToAllCharts = (days: number | 'all') => {
+    const today = new Date();
+    const endDate = today.toISOString().split('T')[0];
+
+    let startDate = '';
+    if (days !== 'all') {
+      const start = new Date();
+      start.setDate(start.getDate() - days);
+      startDate = start.toISOString().split('T')[0];
+    } else {
+      // For "All Time", use the earliest transaction date from data
+      if (stats && stats.daily && stats.daily.length > 0) {
+        const earliestDate = stats.daily[0].date.split('T')[0];
+        startDate = earliestDate;
+      }
+    }
+
+    setRevenueTrendDates({ start: startDate, end: endDate });
+    setTransactionStatusDates({ start: startDate, end: endDate });
+    setDailyTransactionsDates({ start: startDate, end: endDate });
+    setProductDateRange({ start: startDate, end: endDate });
+
+    // Refetch statistics with the new date range for product data
+    if (days !== 'all') {
+      fetchStatistics(startDate, endDate);
+    } else {
+      fetchStatistics();
+    }
+  };
 
   useEffect(() => {
     fetchStatistics();
-  }, [timeRange]);
+  }, []);
 
-  const fetchStatistics = async () => {
+  const fetchStatistics = async (startDate?: string, endDate?: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/admin/statistics?days=${timeRange}`);
+      // Build query params
+      let url = `/api/admin/statistics?days=365`;
+      if (startDate) url += `&startDate=${startDate}`;
+      if (endDate) url += `&endDate=${endDate}`;
+
+      const response = await fetch(url);
       const data = await response.json();
       setStats(data);
     } catch (error) {
@@ -111,6 +153,32 @@ export default function AdminDashboard() {
 
   const formatPercent = (value: number) => {
     return `${value.toFixed(1)}%`;
+  };
+
+  // Helper function to filter daily data by date range
+  const filterDailyData = (data: DailyStat[], startDate: string, endDate: string) => {
+    if (!startDate && !endDate) return data;
+
+    return data.filter((item) => {
+      // Normalize all dates to YYYY-MM-DD format for comparison
+      const itemDateStr = item.date.split('T')[0]; // Get just the date part
+      const startDateStr = startDate ? startDate : null;
+      const endDateStr = endDate ? endDate : null;
+
+      // Simple string comparison works for YYYY-MM-DD format
+      return (!startDateStr || itemDateStr >= startDateStr) &&
+             (!endDateStr || itemDateStr <= endDateStr);
+    });
+  };
+
+  // Helper function to calculate transaction stats from filtered daily data
+  const calculateFilteredStats = (filteredDaily: DailyStat[]) => {
+    return {
+      successful: filteredDaily.reduce((sum, day) => sum + day.successful, 0),
+      pending: filteredDaily.reduce((sum, day) => sum + day.pending, 0),
+      expired: filteredDaily.reduce((sum, day) => sum + day.expired, 0),
+      cancelled: filteredDaily.reduce((sum, day) => sum + day.cancelled, 0),
+    };
   };
 
   if (loading) {
@@ -162,483 +230,431 @@ export default function AdminDashboard() {
         }
       `}</style>
 
-      {/* Header with Time Range Filter */}
+      {/* Header */}
       <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
         marginBottom: '30px',
         animation: 'fadeIn 0.5s ease-out',
       }}>
-        <div>
-          <h2 style={{
-            fontSize: '32px',
-            fontWeight: 'bold',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            marginBottom: '8px',
-          }}>
-            Analytics Dashboard
-          </h2>
-          <p style={{ color: '#6b7280', fontSize: '14px' }}>
-            Track your business performance and insights
-          </p>
-        </div>
-        <select
-          value={timeRange}
-          onChange={(e) => setTimeRange(parseInt(e.target.value))}
-          style={{
-            padding: '10px 20px',
-            borderRadius: '12px',
-            border: '2px solid #e5e7eb',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            background: 'white',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-            transition: 'all 0.2s',
-          }}
-        >
-          <option value={7}>Last 7 Days</option>
-          <option value={30}>Last 30 Days</option>
-          <option value={90}>Last 90 Days</option>
-          <option value={365}>Last Year</option>
-        </select>
-      </div>
-
-      {/* Key Metrics Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: '20px',
-        marginBottom: '40px',
-        animation: 'fadeIn 0.6s ease-out',
-      }}>
-        <MetricCard
-          title="Total Revenue"
-          value={formatCurrency(stats.sales.totalRevenue)}
-          subtitle={`${stats.sales.successfulTransactions} successful`}
-          icon="💰"
-          gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-          trend={`+${formatPercent(stats.sales.conversionRate)}`}
-        />
-        <MetricCard
-          title="Avg Order Value"
-          value={formatCurrency(stats.sales.averageOrderValue)}
-          subtitle={`${stats.sales.totalTransactions} total orders`}
-          icon="📊"
-          gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
-          trend={formatPercent(stats.sales.conversionRate)}
-        />
-        <MetricCard
-          title="Conversion Rate"
-          value={formatPercent(stats.sales.conversionRate)}
-          subtitle="Success rate"
-          icon="🎯"
-          gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
-          trend={`${stats.sales.successfulTransactions}/${stats.sales.totalTransactions}`}
-        />
-        <MetricCard
-          title="Total Visitors"
-          value={stats.traffic.totalVisitors.toString()}
-          subtitle={`${stats.traffic.repeatCustomers} returning`}
-          icon="👥"
-          gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
-          trend={formatPercent((stats.traffic.repeatCustomers / stats.traffic.totalVisitors) * 100)}
-        />
-      </div>
-
-      {/* Charts Section */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
-        gap: '24px',
-        marginBottom: '40px',
-      }}>
-        {/* Revenue Trend Area Chart */}
-        <ChartCard title="📈 Revenue Trend">
-          <RevenueAreaChart data={stats.daily} />
-        </ChartCard>
-
-        {/* Transaction Status Pie */}
-        <ChartCard title="🎯 Transaction Status">
-          <TransactionPieChart
-            successful={stats.sales.successfulTransactions}
-            pending={stats.sales.pendingTransactions}
-            expired={stats.sales.expiredTransactions}
-            cancelled={stats.sales.cancelledTransactions}
-          />
-        </ChartCard>
-      </div>
-
-      {/* Additional Charts Row */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
-        gap: '24px',
-        marginBottom: '40px',
-      }}>
-        {/* Product Performance Bar Chart */}
-        <ChartCard title="📊 Product Performance">
-          <ProductBarChart products={stats.products} />
-        </ChartCard>
-
-        {/* Daily Transactions Line Chart */}
-        <ChartCard title="📉 Daily Transactions">
-          <DailyTransactionsChart data={stats.daily} />
-        </ChartCard>
-      </div>
-
-      {/* Top Products with Visual Bars */}
-      <div style={{
-        background: 'white',
-        borderRadius: '20px',
-        padding: '30px',
-        boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
-        marginBottom: '40px',
-        animation: 'fadeIn 0.8s ease-out',
-      }}>
-        <h3 style={{
-          fontSize: '22px',
-          fontWeight: 'bold',
-          marginBottom: '24px',
-          color: '#1f2937',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-        }}>
-          🏆 Top Selling Products
-        </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {stats.products.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
-              <div style={{ fontSize: '48px', marginBottom: '12px' }}>📦</div>
-              <div>No product data available</div>
-            </div>
-          ) : (
-            stats.products.map((product, index) => {
-              const maxRevenue = Math.max(...stats.products.map(p => p.revenue));
-              const widthPercent = (product.revenue / maxRevenue) * 100;
-
-              return (
-                <div key={index} style={{
-                  animation: `slideIn ${0.3 + index * 0.1}s ease-out`,
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    marginBottom: '10px',
-                    alignItems: 'center',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        background: `linear-gradient(135deg, ${['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a'][index % 5]} 0%, ${['#764ba2', '#f5576c', '#00f2fe', '#38f9d7', '#fee140'][index % 5]} 100%)`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        fontSize: '14px',
-                      }}>
-                        {index + 1}
-                      </span>
-                      <div>
-                        <div style={{ fontWeight: '600', color: '#1f2937', fontSize: '15px' }}>
-                          {product.name}
-                        </div>
-                        <div style={{ color: '#6b7280', fontSize: '13px' }}>
-                          {product.quantity} sold
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ fontWeight: '700', color: '#10b981', fontSize: '16px' }}>
-                      {formatCurrency(product.revenue)}
-                    </div>
-                  </div>
-                  <div style={{
-                    height: '12px',
-                    background: '#f3f4f6',
-                    borderRadius: '999px',
-                    overflow: 'hidden',
-                    position: 'relative',
-                  }}>
-                    <div style={{
-                      height: '100%',
-                      width: `${widthPercent}%`,
-                      background: `linear-gradient(90deg, ${['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a'][index % 5]} 0%, ${['#764ba2', '#f5576c', '#00f2fe', '#38f9d7', '#fee140'][index % 5]} 100%)`,
-                      borderRadius: '999px',
-                      transition: 'width 1s ease-out',
-                      boxShadow: `0 2px 8px ${['rgba(102, 126, 234, 0.4)', 'rgba(240, 147, 251, 0.4)', 'rgba(79, 172, 254, 0.4)', 'rgba(67, 233, 123, 0.4)', 'rgba(250, 112, 154, 0.4)'][index % 5]}`,
-                    }} />
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {/* Voucher Inventory Table */}
-      <div style={{
-        background: 'white',
-        borderRadius: '20px',
-        padding: '30px',
-        boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
-        marginBottom: '40px',
-        animation: 'fadeIn 0.9s ease-out',
-      }}>
-        <h3 style={{
-          fontSize: '22px',
-          fontWeight: 'bold',
-          marginBottom: '24px',
-          color: '#1f2937',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-        }}>
-          🎟️ Voucher Inventory
-          <span style={{
-            fontSize: '14px',
-            fontWeight: '600',
-            padding: '4px 12px',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            borderRadius: '999px',
-          }}>
-            {stats.vouchers.totalVouchers} Total
-          </span>
-        </h3>
-        {stats.vouchersByProduct.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
-            <div style={{ fontSize: '48px', marginBottom: '12px' }}>📭</div>
-            <div style={{ fontSize: '16px', fontWeight: '500' }}>No vouchers in system</div>
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
-              <thead>
-                <tr>
-                  <th style={tableHeaderStyle}>Product</th>
-                  <th style={{ ...tableHeaderStyle, textAlign: 'center' }}>Total</th>
-                  <th style={{ ...tableHeaderStyle, textAlign: 'center' }}>Available</th>
-                  <th style={{ ...tableHeaderStyle, textAlign: 'center' }}>Used</th>
-                  <th style={{ ...tableHeaderStyle, textAlign: 'right' }}>Usage</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.vouchersByProduct.map((voucher, index) => {
-                  const utilizationRate = voucher.total > 0 ? (voucher.used / voucher.total) * 100 : 0;
-                  const bgColor = index % 2 === 0 ? '#fafafa' : '#ffffff';
-
-                  return (
-                    <tr key={index} style={{
-                      animation: `slideIn ${0.3 + index * 0.05}s ease-out`,
-                    }}>
-                      <td style={{
-                        padding: '16px 20px',
-                        borderRadius: '12px 0 0 12px',
-                        background: bgColor,
-                      }}>
-                        <span style={{
-                          fontWeight: '600',
-                          color: '#1f2937',
-                          fontSize: '15px',
-                          textTransform: 'capitalize',
-                        }}>
-                          {voucher.productName}
-                        </span>
-                      </td>
-                      <td style={{
-                        padding: '16px 20px',
-                        textAlign: 'center',
-                        background: bgColor,
-                        fontWeight: '700',
-                        color: '#4b5563',
-                      }}>
-                        {voucher.total}
-                      </td>
-                      <td style={{
-                        padding: '16px 20px',
-                        textAlign: 'center',
-                        background: bgColor,
-                      }}>
-                        <span style={{
-                          padding: '6px 16px',
-                          borderRadius: '999px',
-                          background: voucher.available > 0 ? 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)' : '#e5e7eb',
-                          color: voucher.available > 0 ? '#065f46' : '#6b7280',
-                          fontWeight: '700',
-                          fontSize: '14px',
-                        }}>
-                          {voucher.available}
-                        </span>
-                      </td>
-                      <td style={{
-                        padding: '16px 20px',
-                        textAlign: 'center',
-                        background: bgColor,
-                      }}>
-                        <span style={{
-                          padding: '6px 16px',
-                          borderRadius: '999px',
-                          background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
-                          color: '#92400e',
-                          fontWeight: '700',
-                          fontSize: '14px',
-                        }}>
-                          {voucher.used}
-                        </span>
-                      </td>
-                      <td style={{
-                        padding: '16px 20px',
-                        textAlign: 'right',
-                        borderRadius: '0 12px 12px 0',
-                        background: bgColor,
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
-                          <div style={{
-                            width: '100px',
-                            height: '10px',
-                            background: '#e5e7eb',
-                            borderRadius: '999px',
-                            overflow: 'hidden',
-                          }}>
-                            <div style={{
-                              width: `${utilizationRate}%`,
-                              height: '100%',
-                              background: utilizationRate > 75
-                                ? 'linear-gradient(90deg, #f093fb 0%, #f5576c 100%)'
-                                : utilizationRate > 50
-                                ? 'linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)'
-                                : 'linear-gradient(90deg, #43e97b 0%, #38f9d7 100%)',
-                              transition: 'width 1s ease-out',
-                            }} />
-                          </div>
-                          <span style={{
-                            fontWeight: '700',
-                            color: '#4b5563',
-                            fontSize: '14px',
-                            minWidth: '50px',
-                          }}>
-                            {formatPercent(utilizationRate)}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Metric Card Component
-function MetricCard({
-  title,
-  value,
-  subtitle,
-  icon,
-  gradient,
-  trend,
-}: {
-  title: string;
-  value: string;
-  subtitle: string;
-  icon: string;
-  gradient: string;
-  trend: string;
-}) {
-  return (
-    <div style={{
-      background: 'white',
-      borderRadius: '20px',
-      padding: '24px',
-      boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
-      position: 'relative',
-      overflow: 'hidden',
-      transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-      cursor: 'pointer',
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.transform = 'translateY(-5px)';
-      e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.12)';
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.transform = 'translateY(0)';
-      e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,0,0,0.08)';
-    }}>
-      {/* Background gradient circle */}
-      <div style={{
-        position: 'absolute',
-        top: '-50px',
-        right: '-50px',
-        width: '150px',
-        height: '150px',
-        background: gradient,
-        borderRadius: '50%',
-        opacity: 0.1,
-      }} />
-
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-          <div style={{ fontSize: '14px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            {title}
-          </div>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '12px',
-            background: gradient,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '24px',
-            boxShadow: '0 8px 16px rgba(0,0,0,0.15)',
-          }}>
-            {icon}
-          </div>
-        </div>
-
-        <div style={{
+        <h2 style={{
           fontSize: '32px',
           fontWeight: 'bold',
-          color: '#1f2937',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
           marginBottom: '8px',
-          lineHeight: '1.2',
         }}>
-          {value}
+          Analytics Dashboard
+        </h2>
+        <p style={{ color: '#6b7280', fontSize: '14px' }}>
+          Track your business performance and insights
+        </p>
+      </div>
+
+      {/* Section 2: Time-Based Charts with Global Filter */}
+      <div style={{ marginBottom: '50px' }}>
+        {/* Time Range Selector */}
+        <div style={{
+          marginBottom: '30px',
+        }}>
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+          }}>
+            {(() => {
+              // Calculate available time ranges based on actual data
+              const allRanges = [
+                { label: '7 Days', value: '7', days: 7, minDays: 0 },
+                { label: '30 Days', value: '30', days: 30, minDays: 7 },
+                { label: '60 Days', value: '60', days: 60, minDays: 30 },
+                { label: '90 Days', value: '90', days: 90, minDays: 60 },
+                { label: '6 Months', value: '180', days: 180, minDays: 90 },
+                { label: '1 Year', value: '365', days: 365, minDays: 180 },
+                { label: 'All Time', value: 'all', days: 'all' as const, minDays: 0 },
+              ];
+
+              // Calculate actual data range in days
+              let dataRangeDays = 0;
+              if (stats && stats.daily && stats.daily.length > 0) {
+                const earliestDate = new Date(stats.daily[0].date);
+                const today = new Date();
+                dataRangeDays = Math.ceil((today.getTime() - earliestDate.getTime()) / (1000 * 60 * 60 * 24));
+              }
+
+              // Filter ranges: show a range if we have more data than its minDays requirement
+              const availableRanges = allRanges.filter(range => {
+                if (range.value === 'all') return true; // Always show "All Time"
+                return dataRangeDays > range.minDays;
+              });
+
+              return availableRanges.map((range) => (
+                <button
+                  key={range.value}
+                  onClick={() => {
+                    setSelectedTimeRange(range.value);
+                    applyTimeRangeToAllCharts(range.days);
+                  }}
+                  style={{
+                    padding: '8px 20px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    border: selectedTimeRange === range.value ? '2px solid #667eea' : '2px solid #e5e7eb',
+                    borderRadius: '8px',
+                    background: selectedTimeRange === range.value
+                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                      : 'white',
+                    color: selectedTimeRange === range.value ? 'white' : '#4b5563',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: selectedTimeRange === range.value
+                      ? '0 4px 12px rgba(102, 126, 234, 0.4)'
+                      : '0 2px 4px rgba(0,0,0,0.05)',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (selectedTimeRange !== range.value) {
+                      e.currentTarget.style.borderColor = '#667eea';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedTimeRange !== range.value) {
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                    }
+                  }}
+                >
+                  {range.label}
+                </button>
+              ));
+            })()}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: '13px', color: '#9ca3af' }}>
-            {subtitle}
-          </div>
-          <div style={{
-            fontSize: '12px',
-            fontWeight: '700',
-            padding: '4px 10px',
-            borderRadius: '999px',
-            background: 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)',
-            color: '#065f46',
-          }}>
-            {trend}
-          </div>
-        </div>
+        {(() => {
+          // Get the label for the selected time range
+          const timeRangeLabel = [
+            { value: '7', label: '7 Days' },
+            { value: '30', label: '30 Days' },
+            { value: '60', label: '60 Days' },
+            { value: '90', label: '90 Days' },
+            { value: '180', label: '6 Months' },
+            { value: '365', label: '1 Year' },
+            { value: 'all', label: 'All Time' },
+          ].find(r => r.value === selectedTimeRange)?.label || 'All Time';
+
+          return (
+            <>
+              {/* Daily Transactions Line Chart - Full Width */}
+              <div style={{ marginBottom: '24px' }}>
+                <SimpleChartCard title="📉 Daily Transactions" badge={timeRangeLabel}>
+                  <DailyTransactionsChart
+                    data={filterDailyData(stats.daily, dailyTransactionsDates.start, dailyTransactionsDates.end)}
+                  />
+                </SimpleChartCard>
+              </div>
+
+              {/* Revenue Trend and Transaction Status - Two Column Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+                gap: '24px',
+              }}>
+                {/* Revenue Trend Area Chart */}
+                <SimpleChartCard title="📈 Revenue Trend" badge={timeRangeLabel}>
+                  <RevenueAreaChart
+                    data={filterDailyData(stats.daily, revenueTrendDates.start, revenueTrendDates.end)}
+                  />
+                </SimpleChartCard>
+
+                {/* Transaction Status Pie */}
+                <SimpleChartCard title="🎯 Transaction Status" badge={timeRangeLabel}>
+                  {(() => {
+                    const filteredDaily = filterDailyData(stats.daily, transactionStatusDates.start, transactionStatusDates.end);
+                    const filteredStats = calculateFilteredStats(filteredDaily);
+                    return (
+                      <TransactionPieChart
+                        successful={filteredStats.successful}
+                        pending={filteredStats.pending}
+                        expired={filteredStats.expired}
+                        cancelled={filteredStats.cancelled}
+                      />
+                    );
+                  })()}
+                </SimpleChartCard>
+              </div>
+            </>
+          );
+        })()}
       </div>
+
+      {/* Section 3: Product Data */}
+      {stats && (() => {
+        // Get the label for the selected time range
+        const timeRangeLabel = [
+          { value: '7', label: '7 Days' },
+          { value: '30', label: '30 Days' },
+          { value: '60', label: '60 Days' },
+          { value: '90', label: '90 Days' },
+          { value: '180', label: '6 Months' },
+          { value: '365', label: '1 Year' },
+          { value: 'all', label: 'All Time' },
+        ].find(r => r.value === selectedTimeRange)?.label || 'All Time';
+
+        return (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+            gap: '24px',
+            marginBottom: '40px',
+          }}>
+            {/* Product Performance Bar Chart */}
+            <SimpleChartCard title="📊 Product Performance" badge={timeRangeLabel}>
+              <ProductBarChart products={stats.products} />
+            </SimpleChartCard>
+
+            {/* Top Selling Products */}
+            <SimpleChartCard title="🏆 Top Selling Products" badge={timeRangeLabel}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {stats.products.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
+                <div style={{ fontSize: '48px', marginBottom: '12px' }}>📦</div>
+                <div>No product data available</div>
+              </div>
+            ) : (
+              stats.products.map((product, index) => {
+                const maxRevenue = Math.max(...stats.products.map(p => p.revenue));
+                const widthPercent = (product.revenue / maxRevenue) * 100;
+
+                return (
+                  <div key={index} style={{
+                    animation: `slideIn ${0.3 + index * 0.1}s ease-out`,
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '10px',
+                      alignItems: 'center',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: `linear-gradient(135deg, ${['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a'][index % 5]} 0%, ${['#764ba2', '#f5576c', '#00f2fe', '#38f9d7', '#fee140'][index % 5]} 100%)`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: '14px',
+                        }}>
+                          {index + 1}
+                        </span>
+                        <div>
+                          <div style={{ fontWeight: '600', color: '#1f2937', fontSize: '15px' }}>
+                            {product.name}
+                          </div>
+                          <div style={{ color: '#6b7280', fontSize: '13px' }}>
+                            {product.quantity} sold
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ fontWeight: '700', color: '#10b981', fontSize: '16px' }}>
+                        {formatCurrency(product.revenue)}
+                      </div>
+                    </div>
+                    <div style={{
+                      height: '12px',
+                      background: '#f3f4f6',
+                      borderRadius: '999px',
+                      overflow: 'hidden',
+                      position: 'relative',
+                    }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${widthPercent}%`,
+                        background: `linear-gradient(90deg, ${['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a'][index % 5]} 0%, ${['#764ba2', '#f5576c', '#00f2fe', '#38f9d7', '#fee140'][index % 5]} 100%)`,
+                        borderRadius: '999px',
+                        transition: 'width 1s ease-out',
+                        boxShadow: `0 2px 8px ${['rgba(102, 126, 234, 0.4)', 'rgba(240, 147, 251, 0.4)', 'rgba(79, 172, 254, 0.4)', 'rgba(67, 233, 123, 0.4)', 'rgba(250, 112, 154, 0.4)'][index % 5]}`,
+                      }} />
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </SimpleChartCard>
+          </div>
+        );
+      })()}
+
     </div>
   );
 }
 
 // Chart Card Wrapper
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+function ChartCard({
+  title,
+  children,
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
+  onClearDates
+}: {
+  title: string;
+  children: React.ReactNode;
+  startDate: string;
+  endDate: string;
+  onStartDateChange: (date: string) => void;
+  onEndDateChange: (date: string) => void;
+  onClearDates: () => void;
+}) {
+  const endDateInputRef = useRef<HTMLInputElement>(null);
+  const today = new Date().toISOString().split("T")[0];
+
+  return (
+    <div style={{
+      background: 'white',
+      borderRadius: '20px',
+      padding: '30px',
+      boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
+      animation: 'fadeIn 0.7s ease-out',
+    }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '24px',
+        flexWrap: 'wrap',
+        gap: '12px',
+      }}>
+        <h3 style={{
+          fontSize: '20px',
+          fontWeight: 'bold',
+          color: '#1f2937',
+          margin: 0,
+        }}>
+          {title}
+        </h3>
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            alignItems: "center",
+            padding: "4px",
+            border: "2px solid #E5E7EB",
+            borderRadius: "8px",
+            backgroundColor: "white",
+          }}
+        >
+          <input
+            type="date"
+            value={startDate}
+            max={endDate ? (endDate < today ? endDate : today) : today}
+            onClick={(e) => {
+              e.currentTarget.showPicker();
+            }}
+            onChange={(e) => {
+              const newStartDate = e.target.value;
+              onStartDateChange(newStartDate);
+
+              // If new start date is after current end date, clear end date
+              if (newStartDate && endDate && newStartDate > endDate) {
+                onEndDateChange("");
+              }
+
+              if (newStartDate && endDateInputRef.current) {
+                setTimeout(() => {
+                  endDateInputRef.current?.showPicker();
+                }, 100);
+              }
+            }}
+            placeholder="Tanggal Awal"
+            style={{
+              padding: "6px 12px",
+              fontSize: "14px",
+              border: "none",
+              borderRadius: "4px",
+              outline: "none",
+              color: "#111827",
+              cursor: "pointer",
+              backgroundColor: "transparent",
+            }}
+          />
+          <span style={{ color: "#6B7280", fontSize: "14px" }}>
+            -
+          </span>
+          <input
+            ref={endDateInputRef}
+            type="date"
+            value={endDate}
+            min={startDate || undefined}
+            max={today}
+            onClick={(e) => {
+              e.currentTarget.showPicker();
+            }}
+            onChange={(e) => onEndDateChange(e.target.value)}
+            placeholder="Tanggal Akhir"
+            style={{
+              padding: "6px 12px",
+              fontSize: "14px",
+              border: "none",
+              borderRadius: "4px",
+              outline: "none",
+              color: "#111827",
+              cursor: "pointer",
+              backgroundColor: "transparent",
+            }}
+          />
+          {(startDate || endDate) && (
+            <button
+              onClick={onClearDates}
+              style={{
+                padding: "6px 10px",
+                backgroundColor: "transparent",
+                color: "#EF4444",
+                border: "none",
+                borderRadius: "4px",
+                fontSize: "18px",
+                fontWeight: "600",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                lineHeight: "1",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#FEE2E2";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor =
+                  "transparent";
+              }}
+              title="Clear dates"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Simple Chart Card (without date filters)
+function SimpleChartCard({
+  title,
+  children,
+  badge,
+}: {
+  title: string;
+  children: React.ReactNode;
+  badge?: string;
+}) {
   return (
     <div style={{
       background: 'white',
@@ -650,10 +666,25 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
       <h3 style={{
         fontSize: '20px',
         fontWeight: 'bold',
-        marginBottom: '24px',
         color: '#1f2937',
+        marginBottom: '24px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
       }}>
         {title}
+        {badge && (
+          <span style={{
+            fontSize: '12px',
+            fontWeight: '600',
+            padding: '4px 12px',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            borderRadius: '6px',
+          }}>
+            {badge}
+          </span>
+        )}
       </h3>
       {children}
     </div>
@@ -704,6 +735,17 @@ function RevenueAreaChart({ data }: { data: DailyStat[] }) {
             border: '2px solid #667eea',
             borderRadius: '8px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          }}
+          labelStyle={{
+            color: '#111827',
+            fontWeight: '700',
+            marginBottom: '4px',
+            fontSize: '14px',
+          }}
+          itemStyle={{
+            color: '#1f2937',
+            fontWeight: '600',
+            fontSize: '13px',
           }}
         />
         <Area
@@ -782,6 +824,17 @@ function TransactionPieChart({
             borderRadius: '8px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
           }}
+          labelStyle={{
+            color: '#111827',
+            fontWeight: '700',
+            marginBottom: '4px',
+            fontSize: '14px',
+          }}
+          itemStyle={{
+            color: '#1f2937',
+            fontWeight: '600',
+            fontSize: '13px',
+          }}
         />
         <Legend
           verticalAlign="bottom"
@@ -841,6 +894,17 @@ function ProductBarChart({ products }: { products: ProductStat[] }) {
             borderRadius: '8px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
           }}
+          labelStyle={{
+            color: '#111827',
+            fontWeight: '700',
+            marginBottom: '4px',
+            fontSize: '14px',
+          }}
+          itemStyle={{
+            color: '#1f2937',
+            fontWeight: '600',
+            fontSize: '13px',
+          }}
         />
         <Bar
           dataKey="revenue"
@@ -880,6 +944,17 @@ function DailyTransactionsChart({ data }: { data: DailyStat[] }) {
             border: '2px solid #667eea',
             borderRadius: '8px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          }}
+          labelStyle={{
+            color: '#111827',
+            fontWeight: '700',
+            marginBottom: '4px',
+            fontSize: '14px',
+          }}
+          itemStyle={{
+            color: '#1f2937',
+            fontWeight: '600',
+            fontSize: '13px',
           }}
         />
         <Legend />

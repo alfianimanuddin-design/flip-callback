@@ -11,18 +11,40 @@ export async function GET(request: Request) {
     // Get URL parameters for date filtering
     const { searchParams } = new URL(request.url);
     const days = parseInt(searchParams.get('days') || '30');
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
-    // Fetch all transactions
-    const { data: transactions, error: transactionsError } = await supabase
+    // Fetch all transactions to find the earliest one
+    const { data: allTransactions, error: transactionsError } = await supabase
       .from('transactions')
       .select('*')
-      .gte('created_at', startDate.toISOString())
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: true });
 
     if (transactionsError) {
       throw transactionsError;
+    }
+
+    // Filter transactions by date range if provided
+    let transactions = allTransactions;
+    if (startDate || endDate) {
+      transactions = allTransactions?.filter((t) => {
+        const txDate = new Date(t.created_at);
+        const txDateStr = txDate.getFullYear() + '-' +
+                         String(txDate.getMonth() + 1).padStart(2, '0') + '-' +
+                         String(txDate.getDate()).padStart(2, '0');
+
+        return (!startDate || txDateStr >= startDate) &&
+               (!endDate || txDateStr <= endDate);
+      });
+    }
+
+    // Calculate the actual date range based on earliest transaction
+    let actualDays = days;
+    if (allTransactions && allTransactions.length > 0) {
+      const earliestTransaction = new Date(allTransactions[0].created_at);
+      const today = new Date();
+      const diffTime = Math.abs(today.getTime() - earliestTransaction.getTime());
+      actualDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include today
     }
 
     // Fetch vouchers data
@@ -96,9 +118,9 @@ export async function GET(request: Request) {
       .sort((a: any, b: any) => b.revenue - a.revenue)
       .slice(0, 5);
 
-    // Calculate daily transaction status for the last 7 days
+    // Calculate daily transaction status for the actual date range
     const dailyStats = [];
-    for (let i = 6; i >= 0; i--) {
+    for (let i = actualDays - 1; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       date.setHours(0, 0, 0, 0);
