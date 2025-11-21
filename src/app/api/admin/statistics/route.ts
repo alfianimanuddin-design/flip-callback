@@ -14,34 +14,34 @@ export async function GET(request: Request) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    // Fetch all transactions to find the earliest one
-    const { data: allTransactions, error: transactionsError } = await supabase
+    // Build query with date filters pushed to database
+    let query = supabase
       .from('transactions')
       .select('*')
       .order('created_at', { ascending: true });
+
+    // Apply date range filters at database level (much faster than in-memory filtering)
+    if (startDate) {
+      // Filter for dates >= startDate (inclusive)
+      query = query.gte('created_at', startDate);
+    }
+    if (endDate) {
+      // Filter for dates <= endDate + 1 day (to include entire end date)
+      const endDateTime = new Date(endDate);
+      endDateTime.setDate(endDateTime.getDate() + 1);
+      query = query.lt('created_at', endDateTime.toISOString());
+    }
+
+    const { data: transactions, error: transactionsError } = await query;
 
     if (transactionsError) {
       throw transactionsError;
     }
 
-    // Filter transactions by date range if provided
-    let transactions = allTransactions;
-    if (startDate || endDate) {
-      transactions = allTransactions?.filter((t) => {
-        const txDate = new Date(t.created_at);
-        const txDateStr = txDate.getFullYear() + '-' +
-                         String(txDate.getMonth() + 1).padStart(2, '0') + '-' +
-                         String(txDate.getDate()).padStart(2, '0');
-
-        return (!startDate || txDateStr >= startDate) &&
-               (!endDate || txDateStr <= endDate);
-      });
-    }
-
-    // Calculate the actual date range based on earliest transaction
+    // Calculate the actual date range based on filtered transactions
     let actualDays = days;
-    if (allTransactions && allTransactions.length > 0) {
-      const earliestTransaction = new Date(allTransactions[0].created_at);
+    if (transactions && transactions.length > 0) {
+      const earliestTransaction = new Date(transactions[0].created_at);
       const today = new Date();
       const diffTime = Math.abs(today.getTime() - earliestTransaction.getTime());
       actualDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include today
