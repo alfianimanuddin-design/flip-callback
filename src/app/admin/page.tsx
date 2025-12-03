@@ -66,6 +66,7 @@ export default function AdminDashboard() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [stats, setStats] = useState<any>(null);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [totalTransactions, setTotalTransactions] = useState(0);
   const itemsPerPage = 10;
   const router = useRouter();
 
@@ -123,18 +124,57 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchData = async () => {
+  const fetchData = async (
+    page: number = currentPage,
+    search: string = searchQuery,
+    status: string = statusFilter,
+    dateRange: { start: string; end: string } = transactionDateRange
+  ) => {
     try {
-      // Fetch transactions
-      const { data: txData, error: txError} = await supabase
+      // Build transaction query with filters
+      let txQuery = supabase
         .from("transactions")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select("*", { count: "exact" });
+
+      // Apply search filter
+      if (search) {
+        txQuery = txQuery.or(`transaction_id.ilike.%${search}%,email.ilike.%${search}%`);
+      }
+
+      // Apply status filter
+      if (status !== "ALL") {
+        txQuery = txQuery.eq("status", status);
+      }
+
+      // Apply date range filter
+      if (dateRange.start || dateRange.end) {
+        if (dateRange.start) {
+          // Start of day in local timezone
+          const startDate = new Date(dateRange.start + "T00:00:00");
+          txQuery = txQuery.gte("created_at", startDate.toISOString());
+        }
+        if (dateRange.end) {
+          // End of day in local timezone
+          const endDate = new Date(dateRange.end + "T23:59:59");
+          txQuery = txQuery.lte("created_at", endDate.toISOString());
+        }
+      }
+
+      // Apply pagination
+      const from = (page - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+
+      // Execute query with pagination
+      const { data: txData, error: txError, count } = await txQuery
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
       if (txError) throw txError;
-      setTransactions(txData || []);
 
-      // Fetch voucher stats
+      setTransactions(txData || []);
+      setTotalTransactions(count || 0);
+
+      // Fetch voucher stats (unchanged)
       const { data: all } = await supabase.from("vouchers").select("*");
       const { data: used } = await supabase
         .from("vouchers")
@@ -168,7 +208,8 @@ export default function AdminDashboard() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchData();
+    await fetchData(currentPage, searchQuery, statusFilter, transactionDateRange);
+    await fetchStatistics();
     setIsRefreshing(false);
   };
 
@@ -233,38 +274,18 @@ export default function AdminDashboard() {
     }
   };
 
-  const filteredTransactions = transactions.filter((tx) => {
-    const query = searchQuery.toLowerCase();
-    const matchesSearch =
-      tx.transaction_id?.toLowerCase().includes(query) ||
-      tx.email?.toLowerCase().includes(query);
-
-    const matchesStatus = statusFilter === "ALL" || tx.status === statusFilter;
-
-    // Date range filtering
-    let matchesDateRange = true;
-    if (transactionDateRange.start || transactionDateRange.end) {
-      // Get the date in local timezone (not UTC) to match the date picker
-      const txDate = new Date(tx.created_at);
-      const localDateStr = txDate.getFullYear() + '-' +
-                          String(txDate.getMonth() + 1).padStart(2, '0') + '-' +
-                          String(txDate.getDate()).padStart(2, '0');
-
-      matchesDateRange = (!transactionDateRange.start || localDateStr >= transactionDateRange.start) &&
-                        (!transactionDateRange.end || localDateStr <= transactionDateRange.end);
-    }
-
-    return matchesSearch && matchesStatus && matchesDateRange;
-  });
-
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  // Pagination calculations (server-side pagination)
+  const totalPages = Math.ceil(totalTransactions / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedTransactions = filteredTransactions.slice(
-    startIndex,
-    endIndex
-  );
+
+  // Fetch data when filters or page changes (after initial load)
+  useEffect(() => {
+    if (!loading) {
+      fetchData(currentPage, searchQuery, statusFilter, transactionDateRange);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, searchQuery, statusFilter, transactionDateRange.start, transactionDateRange.end]);
 
   // Reset to page 1 when search query, status filter, or date range changes
   useEffect(() => {
@@ -1099,7 +1120,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredTransactions.length === 0 ? (
+                    {transactions.length === 0 ? (
                       <tr>
                         <td
                           colSpan={6}
@@ -1116,26 +1137,26 @@ export default function AdminDashboard() {
                               marginBottom: "16px",
                             }}
                           >
-                            {transactions.length === 0 ? (
+                            {totalTransactions === 0 ? (
                               <Inbox size={48} color="#9CA3AF" />
                             ) : (
                               <Search size={48} color="#9CA3AF" />
                             )}
                           </div>
                           <div style={{ fontSize: "18px", fontWeight: "500" }}>
-                            {transactions.length === 0
+                            {totalTransactions === 0
                               ? "No transactions yet"
                               : "No matching transactions"}
                           </div>
                           <div style={{ fontSize: "14px", marginTop: "8px" }}>
-                            {transactions.length === 0
+                            {totalTransactions === 0
                               ? "Transactions will appear here once payments are made"
                               : "Try adjusting your search query"}
                           </div>
                         </td>
                       </tr>
                     ) : (
-                      paginatedTransactions.map((tx, index) => (
+                      transactions.map((tx: any, index: number) => (
                         <tr
                           key={tx.id}
                         >
@@ -1406,7 +1427,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Pagination Controls */}
-              {filteredTransactions.length > itemsPerPage && (
+              {totalTransactions > itemsPerPage && (
                 <div
                   style={{
                     padding: "24px",
@@ -1420,8 +1441,8 @@ export default function AdminDashboard() {
                 >
                   <div style={{ fontSize: "14px", color: "#6B7280" }}>
                     Showing {startIndex + 1} to{" "}
-                    {Math.min(endIndex, filteredTransactions.length)} of{" "}
-                    {filteredTransactions.length} results
+                    {Math.min(endIndex, totalTransactions)} of{" "}
+                    {totalTransactions} results
                   </div>
 
                   <div
