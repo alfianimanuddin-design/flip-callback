@@ -92,7 +92,7 @@ export default function AdminDashboard() {
 
   const fetchStatistics = async () => {
     try {
-      const response = await fetch(`/api/admin/statistics?days=365`);
+      const response = await fetch(`/api/admin/statistics?days=30`);
       const data = await response.json();
       setStats(data);
     } catch (error) {
@@ -174,24 +174,58 @@ export default function AdminDashboard() {
       setTransactions(txData || []);
       setTotalTransactions(count || 0);
 
-      // Fetch voucher stats (unchanged)
-      const { data: all } = await supabase.from("vouchers").select("*");
-      const { data: used } = await supabase
+      // Fetch voucher stats - using count for efficiency
+      const { count: totalCount } = await supabase
         .from("vouchers")
-        .select("*")
+        .select("*", { count: "exact", head: true });
+
+      const { count: usedCount } = await supabase
+        .from("vouchers")
+        .select("*", { count: "exact", head: true })
         .eq("used", true);
-      const { data: available } = await supabase
+
+      const { count: availableCount } = await supabase
         .from("vouchers")
-        .select("*")
-        .eq("used", false)
-        .order("created_at", { ascending: false });
+        .select("*", { count: "exact", head: true })
+        .eq("used", false);
+
+      // Fetch ALL vouchers to properly group by product_name
+      // We need all records for accurate grouping, so we'll fetch in batches if needed
+      let allVouchers: any[] = [];
+      const batchSize = 1000;
+      let offset = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data: batch, error } = await supabase
+          .from("vouchers")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .range(offset, offset + batchSize - 1);
+
+        if (error) {
+          console.error("Error fetching vouchers:", error);
+          break;
+        }
+
+        if (batch && batch.length > 0) {
+          allVouchers = [...allVouchers, ...batch];
+          offset += batchSize;
+          hasMore = batch.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      // Filter available vouchers from all vouchers
+      const availableVouchers = allVouchers.filter((v) => !v.used);
 
       setVoucherData({
-        total: all?.length || 0,
-        used: used?.length || 0,
-        available: available?.length || 0,
-        availableVouchers: available || [],
-        allVouchers: all || [],
+        total: totalCount || 0,
+        used: usedCount || 0,
+        available: availableCount || 0,
+        availableVouchers: availableVouchers,
+        allVouchers: allVouchers,
       });
     } catch (error) {
       console.error("Error fetching data:", error);

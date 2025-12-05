@@ -47,10 +47,11 @@ export async function GET(request: Request) {
       actualDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include today
     }
 
-    // Fetch vouchers data
+    // Fetch vouchers data (with high range limit to get all records)
     const { data: vouchers, error: vouchersError } = await supabase
       .from('vouchers')
-      .select('*');
+      .select('*')
+      .range(0, 99999); // Fetch up to 100k records
 
     if (vouchersError) {
       throw vouchersError;
