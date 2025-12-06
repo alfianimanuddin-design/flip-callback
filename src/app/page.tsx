@@ -40,9 +40,17 @@ export default function VoucherSelection() {
       const data = await response.json();
 
       if (data.success) {
-        // Group vouchers by product
-        const grouped = groupVouchersByProduct(data.vouchers);
-        setVouchers(grouped);
+        // API now returns pre-grouped vouchers
+        const voucherGroups: VoucherGroup[] = data.vouchers.map((v: any) => ({
+          product_name: v.product_name,
+          amount: v.amount,
+          discounted_amount: v.discounted_amount,
+          final_price: v.discounted_amount || v.amount,
+          has_discount: v.discounted_amount !== null,
+          available_count: v.available_count,
+          image: v.image,
+        }));
+        setVouchers(voucherGroups);
       } else {
         setError("Failed to load vouchers");
       }
@@ -52,28 +60,6 @@ export default function VoucherSelection() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const groupVouchersByProduct = (voucherList: any[]) => {
-    const grouped: { [key: string]: VoucherGroup } = {};
-    voucherList.forEach((voucher) => {
-      // Create unique key based on product name AND price
-      const key = `${voucher.product_name}_${voucher.amount}_${voucher.discounted_amount}`;
-
-      if (!grouped[key]) {
-        grouped[key] = {
-          product_name: voucher.product_name,
-          amount: voucher.amount,
-          discounted_amount: voucher.discounted_amount,
-          final_price: voucher.discounted_amount || voucher.amount,
-          has_discount: voucher.discounted_amount !== null,
-          available_count: 0,
-          image: voucher.image,
-        };
-      }
-      grouped[key].available_count++;
-    });
-    return Object.values(grouped);
   };
 
   const handlePurchase = async () => {
