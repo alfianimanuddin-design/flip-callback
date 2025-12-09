@@ -131,48 +131,54 @@ export default function AdminDashboard() {
     dateRange: { start: string; end: string } = transactionDateRange
   ) => {
     try {
-      // Build transaction query with filters
-      let txQuery = supabase
-        .from("transactions")
-        .select("*", { count: "exact" });
+      // Get current session for authentication
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      // Apply search filter
+      if (!session) {
+        console.error("No session found");
+        return;
+      }
+
+      // Build query parameters
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: itemsPerPage.toString(),
+      });
+
       if (search) {
-        txQuery = txQuery.or(`transaction_id.ilike.%${search}%,email.ilike.%${search}%`);
+        params.append('search', search);
       }
 
-      // Apply status filter
-      if (status !== "ALL") {
-        txQuery = txQuery.eq("status", status);
+      if (status !== 'ALL') {
+        params.append('status', status);
       }
 
-      // Apply date range filter
-      if (dateRange.start || dateRange.end) {
-        if (dateRange.start) {
-          // Start of day in local timezone
-          const startDate = new Date(dateRange.start + "T00:00:00");
-          txQuery = txQuery.gte("created_at", startDate.toISOString());
-        }
-        if (dateRange.end) {
-          // End of day in local timezone
-          const endDate = new Date(dateRange.end + "T23:59:59");
-          txQuery = txQuery.lte("created_at", endDate.toISOString());
-        }
+      if (dateRange.start) {
+        params.append('startDate', dateRange.start);
       }
 
-      // Apply pagination
-      const from = (page - 1) * itemsPerPage;
-      const to = from + itemsPerPage - 1;
+      if (dateRange.end) {
+        params.append('endDate', dateRange.end);
+      }
 
-      // Execute query with pagination
-      const { data: txData, error: txError, count } = await txQuery
-        .order("created_at", { ascending: false })
-        .range(from, to);
+      // Fetch transactions from API with service role access
+      const response = await fetch(`/api/admin/transactions?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
 
-      if (txError) throw txError;
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
 
+      const { transactions: txData, total } = await response.json();
+
+      console.log("Fetched transactions:", txData?.length || 0, "Total count:", total || 0);
       setTransactions(txData || []);
-      setTotalTransactions(count || 0);
+      setTotalTransactions(total || 0);
 
       // Fetch voucher stats - using count for efficiency
       const { count: totalCount } = await supabase
@@ -913,16 +919,25 @@ export default function AdminDashboard() {
                     gap: "16px",
                   }}
                 >
-                  <h2
-                    style={{
-                      fontSize: "24px",
-                      fontWeight: "bold",
-                      color: "#111827",
-                      margin: 0,
-                    }}
-                  >
-                    Redeemed Vouchers ({voucherData.used})
-                  </h2>
+                  <div>
+                    <h2
+                      style={{
+                        fontSize: "24px",
+                        fontWeight: "bold",
+                        color: "#111827",
+                        margin: 0,
+                      }}
+                    >
+                      Transactions ({totalTransactions})
+                    </h2>
+                    <p style={{
+                      fontSize: "14px",
+                      color: "#6B7280",
+                      margin: "4px 0 0 0"
+                    }}>
+                      {voucherData.used} vouchers have been used
+                    </p>
+                  </div>
                   <div
                     style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}
                   >
@@ -1179,13 +1194,13 @@ export default function AdminDashboard() {
                           </div>
                           <div style={{ fontSize: "18px", fontWeight: "500" }}>
                             {totalTransactions === 0
-                              ? "No transactions yet"
+                              ? "No transactions found"
                               : "No matching transactions"}
                           </div>
                           <div style={{ fontSize: "14px", marginTop: "8px" }}>
                             {totalTransactions === 0
                               ? "Transactions will appear here once payments are made"
-                              : "Try adjusting your search query"}
+                              : "Try adjusting your filters, search query, or date range"}
                           </div>
                         </td>
                       </tr>

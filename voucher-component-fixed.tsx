@@ -23,13 +23,13 @@ const PRODUCT_ORDER = [
 // Default products - FIXED: Updated to match actual database product names
 const DEFAULT_PRODUCTS: VoucherGroup[] = [
     {
-        product_name: "Value Voucher: Kopi Kenangan Mantan - Large",
+        product_name: "Value Voucher senilai 25RB",
         amount: 25000,
         discounted_amount: 20000,
         final_price: 20000,
         has_discount: true,
         available_count: 0,
-        image: "https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/kopken%20mantan.png",
+        image: "https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/value%20voucher.png",
     },
     {
         product_name: "Americano - Regular",

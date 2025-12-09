@@ -27,14 +27,14 @@ const PRODUCT_ORDER = [
 // NOTE: These MUST match the exact product names in your database
 const DEFAULT_PRODUCTS: VoucherGroup[] = [
   {
-    product_name: "Value Voucher: Kopi Kenangan Mantan - Large",
+    product_name: "Value Voucher senilai 25RB",
     amount: 25000,
     discounted_amount: 20000,
     final_price: 20000,
     has_discount: true,
     available_count: 0, // Default to 0, API will update with actual count
     image:
-      "https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/kopken%20mantan.png",
+      "https://storage.googleapis.com/flip-prod-comm-assets/assets/testing-flipjajan/value%20voucher.png",
     description:
       "Voucher berlaku untuk semua minuman dan makanan kecuali produk bundling.",
   },
@@ -150,7 +150,9 @@ const mergeWithDefaults = (apiVouchers: VoucherGroup[]): VoucherGroup[] => {
         );
 
         if (apiMatches && defaultMatches) {
-          console.log(`✅ Keyword match found: "${apiProductName}" -> "${defaultProduct.product_name}" (keywords: ${order.keywords.join(", ")})`);
+          console.log(
+            `✅ Keyword match found: "${apiProductName}" -> "${defaultProduct.product_name}" (keywords: ${order.keywords.join(", ")})`
+          );
         }
 
         return apiMatches && defaultMatches;
@@ -194,7 +196,9 @@ const mergeWithDefaults = (apiVouchers: VoucherGroup[]): VoucherGroup[] => {
   // Add any API products that didn't match defaults
   apiVouchers.forEach((apiVoucher) => {
     if (!matchedApiProducts.has(apiVoucher.product_name)) {
-      console.log(`➕ Adding unmatched API product: "${apiVoucher.product_name}"`);
+      console.log(
+        `➕ Adding unmatched API product: "${apiVoucher.product_name}"`
+      );
       mergedMap.set(apiVoucher.product_name, apiVoucher);
     }
   });
@@ -370,7 +374,9 @@ const ShimmerCard = () => {
 };
 
 // Main component
-export default function withVoucherList(Component: ComponentType): ComponentType {
+export default function withVoucherList(
+  Component: ComponentType
+): ComponentType {
   return (props: Record<string, unknown>) => {
     const [allVouchers, setAllVouchers] = useState<VoucherGroup[]>([]);
     const [vouchers, setVouchers] = useState<VoucherGroup[]>([]);
